@@ -585,14 +585,17 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
+function goStudentLogin(){
+  localStorage.removeItem("studentID");
+  localStorage.removeItem("student_iqama");
+  localStorage.removeItem("studentLoginDate");
 
-let CURRENT_IQAMA = normalizeIqama(
-  localStorage.getItem("studentID") ||
-  localStorage.getItem("student_iqama") ||
-  ""
-);
+  sessionStorage.clear();
 
-window.addEventListener("load", function(){
+  location.replace("https://www.prudle-education.com/log-in-out");
+}
+
+function hasValidStudentLogin(){
 
   const id =
     localStorage.getItem("studentID") ||
@@ -601,12 +604,40 @@ window.addEventListener("load", function(){
   const last = localStorage.getItem("studentLoginDate");
   const today = new Date().toDateString();
 
-  if(id && last === today){
-    document.getElementById("iqamaInput").value = id;
-    loginStudent();
+  return !!id && last === today;
+}
+
+window.addEventListener("pageshow", function(){
+
+  if(!hasValidStudentLogin()){
+    goStudentLogin();
+    return;
   }
 
 });
+
+window.addEventListener("load", function(){
+
+  if(!hasValidStudentLogin()){
+    goStudentLogin();
+    return;
+  }
+
+  const id =
+    localStorage.getItem("studentID") ||
+    localStorage.getItem("student_iqama");
+
+  document.getElementById("iqamaInput").value = id;
+  loginStudent();
+
+});
+let CURRENT_IQAMA = normalizeIqama(
+  localStorage.getItem("studentID") ||
+  localStorage.getItem("student_iqama") ||
+  ""
+);
+
+
 let CURRENT_EXAM_ID = "";
 let CURRENT_EXAM = null;
 let QUESTIONS = [];
@@ -956,12 +987,11 @@ async function loginStudent(){
 
   const iqama = normalizeIqama(document.getElementById("iqamaInput").value || "");
 
-  if(!iqama){
-    localStorage.removeItem("student_iqama");
-    CURRENT_IQAMA = "";
-    alert("أدخل رقم الهوية");
-    return;
-  }
+if(!iqama){
+  CURRENT_IQAMA = "";
+  alert("أدخل رقم الهوية");
+  return;
+}
 
   // مهم: إذا الرقم نفسه غير صالح لا تترك أي قيمة محفوظة قديمة
   if(iqama.length < 10){
@@ -1021,20 +1051,29 @@ localStorage.removeItem("studentLoginDate");
 
   LOGIN_LOADING = false;
   setLoginButtonLoading(false);
-}function logoutStudent(){
+}
+function logoutStudent(){
+
   if(EXAM_ACTIVE){
     const ok = confirm("يوجد اختبار قيد التنفيذ. هل تريد تسجيل الخروج فعلًا؟");
     if(!ok) return;
   }
 
+  localStorage.removeItem("studentID");
   localStorage.removeItem("student_iqama");
+  localStorage.removeItem("studentLoginDate");
+
+  sessionStorage.clear();
+
   CURRENT_IQAMA = "";
   CURRENT_EXAM_ID = "";
   CURRENT_EXAM = null;
   QUESTIONS = [];
   ANSWERS = {};
   CURRENT_INDEX = 0;
+
   stopTimer();
+
   EXAM_ACTIVE = false;
   AUTO_SUBMIT_FIRED = false;
   IS_SUBMITTING = false;
@@ -1045,17 +1084,8 @@ localStorage.removeItem("studentLoginDate");
   SELECTED_COURSE_ID = "";
   SELECTED_COURSE = null;
 
-  showBox("loginBox");
-  hideBox("studentBox");
-  hideBox("examBox");
-  hideBox("resultBox");
-
-  document.getElementById("iqamaInput").value = "";
-  document.getElementById("courseList").innerHTML = "";
-  document.getElementById("examList").innerHTML = "";
-  document.getElementById("questionContainer").innerHTML = "";
-  document.getElementById("resultContent").innerHTML = "";
-  document.getElementById("questionNav").innerHTML = "";
+  location.replace("https://www.prudle-education.com/log-in-out");
+  return;
 }
 
 /* ================= Courses ================= */

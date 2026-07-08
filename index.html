@@ -585,45 +585,7 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
-function clearStudentLogin(){
-  localStorage.removeItem("studentID");
-  localStorage.removeItem("student_iqama");
-  localStorage.removeItem("studentLoginDate");
-  sessionStorage.clear();
-}
 
-function hasValidStudentLogin(){
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
-
-  const last = localStorage.getItem("studentLoginDate");
-  const today = new Date().toDateString();
-
-  return !!id && last === today;
-}
-
-window.addEventListener("pageshow", function(){
-  if(!hasValidStudentLogin()){
-    return;
-  }
-});
-
-window.addEventListener("load", function(){
-  if(!hasValidStudentLogin()){
-    return;
-  }
-
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
-
-  const input = document.getElementById("iqamaInput");
-  if(input){
-    input.value = id;
-    loginStudent();
-  }
-});
 let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
 let CURRENT_EXAM_ID = "";
 let CURRENT_EXAM = null;
@@ -1008,10 +970,7 @@ async function loginStudent(){
 
     // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
     CURRENT_IQAMA = iqama;
-
-localStorage.setItem("studentID", iqama);
-localStorage.setItem("student_iqama", iqama);
-localStorage.setItem("studentLoginDate", new Date().toDateString());
+    localStorage.setItem("student_iqama", iqama);
 
     STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     STUDENT_MAIN = STUDENT_DOCS[0];
@@ -1040,40 +999,23 @@ localStorage.setItem("studentLoginDate", new Date().toDateString());
   setLoginButtonLoading(false);
 }
 function logoutStudent(){
+
   if(EXAM_ACTIVE){
     const ok = confirm("يوجد اختبار قيد التنفيذ. هل تريد تسجيل الخروج فعلًا؟");
     if(!ok) return;
   }
 
-  clearStudentLogin();
-  CURRENT_IQAMA = "";
-  CURRENT_EXAM_ID = "";
-  CURRENT_EXAM = null;
-  QUESTIONS = [];
-  ANSWERS = {};
-  CURRENT_INDEX = 0;
+  localStorage.removeItem("student_iqama");
+  localStorage.removeItem("studentID");
+  localStorage.removeItem("studentLoginDate");
+
+  localStorage.setItem("studentLoggedOut","true");
+
+  sessionStorage.clear();
+
   stopTimer();
-  EXAM_ACTIVE = false;
-  AUTO_SUBMIT_FIRED = false;
-  IS_SUBMITTING = false;
 
-  STUDENT_DOCS = [];
-  STUDENT_MAIN = null;
-  STUDENT_ID = "";
-  SELECTED_COURSE_ID = "";
-  SELECTED_COURSE = null;
-
-  showBox("loginBox");
-  hideBox("studentBox");
-  hideBox("examBox");
-  hideBox("resultBox");
-
-  document.getElementById("iqamaInput").value = "";
-  document.getElementById("courseList").innerHTML = "";
-  document.getElementById("examList").innerHTML = "";
-  document.getElementById("questionContainer").innerHTML = "";
-  document.getElementById("resultContent").innerHTML = "";
-  document.getElementById("questionNav").innerHTML = "";
+  location.replace("https://www.prudle-education.com/log-in-out");
 }
 
 /* ================= Courses ================= */

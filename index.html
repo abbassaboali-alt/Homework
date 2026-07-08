@@ -1018,7 +1018,29 @@ function logoutStudent(){
 
   location.replace("https://www.prudle-education.com/log-in-out");
 }
+window.addEventListener("load", function(){
 
+  const id =
+    localStorage.getItem("studentID") ||
+    localStorage.getItem("student_iqama");
+
+  const last = localStorage.getItem("studentLoginDate");
+  const today = new Date().toDateString();
+
+  if(id && last === today){
+
+    const input = document.getElementById("iqamaInput");
+
+    if(input){
+      input.value = id;
+    }
+
+    setTimeout(()=>{
+      loginStudent();
+    },300);
+  }
+
+});
 /* ================= Courses ================= */
 async function loadStudentCourses(){
   const courseList = document.getElementById("courseList");
@@ -2931,4 +2953,3 @@ async function uploadAudioAnswer(fileObj){
 
 </body>
 </html>
-

@@ -997,7 +997,12 @@ async function loginStudent(){
 
   LOGIN_LOADING = false;
   setLoginButtonLoading(false);
-}function logoutStudent(){
+}
+function logoutStudent(){
+localStorage.removeItem("studentID");
+localStorage.removeItem("student_iqama");
+localStorage.removeItem("studentLoginDate");
+localStorage.setItem("studentLoggedOut","yes");
   if(EXAM_ACTIVE){
     const ok = confirm("يوجد اختبار قيد التنفيذ. هل تريد تسجيل الخروج فعلًا؟");
     if(!ok) return;
@@ -2770,16 +2775,30 @@ async function finishAndGoHome(){
 }
 
 /* ================= Auto Run ================= */
+/* ================= Auto Student Login From Main Login ================= */
+
+function hasValidStudentLogin(){
+  const id =
+    localStorage.getItem("studentID") ||
+    localStorage.getItem("student_iqama");
+
+  const last = localStorage.getItem("studentLoginDate");
+  const today = new Date().toDateString();
+
+  return !!id && last === today;
+}
+
 window.addEventListener("load", async ()=>{
 
-  const savedIqama = normalizeIqama(localStorage.getItem("student_iqama") || "");
+  if(!hasValidStudentLogin()){
 
-  // ❌ إذا ما فيه حفظ → أظهر شاشة الدخول
-  if(!savedIqama || savedIqama.length < 10){
+    localStorage.removeItem("studentID");
     localStorage.removeItem("student_iqama");
+    localStorage.removeItem("studentLoginDate");
+
     CURRENT_IQAMA = "";
 
-    showBox("loginBox");      // □ مهم
+    showBox("loginBox");
     hideBox("studentBox");
     hideBox("examBox");
     hideBox("resultBox");
@@ -2787,18 +2806,42 @@ window.addEventListener("load", async ()=>{
     return;
   }
 
-  // ✅ إذا فيه حفظ → دخول تلقائي
+  const savedIqama = normalizeIqama(
+    localStorage.getItem("student_iqama") ||
+    localStorage.getItem("studentID") ||
+    ""
+  );
+
+  if(!savedIqama || savedIqama.length < 10){
+
+    localStorage.removeItem("studentID");
+    localStorage.removeItem("student_iqama");
+    localStorage.removeItem("studentLoginDate");
+
+    CURRENT_IQAMA = "";
+
+    showBox("loginBox");
+    hideBox("studentBox");
+    hideBox("examBox");
+    hideBox("resultBox");
+
+    return;
+  }
+
   CURRENT_IQAMA = savedIqama;
 
-  // تعبئة الحقل (اختياري)
-  const input = document.getElementById("iqamaInput");
-  if(input) input.value = savedIqama;
+  localStorage.setItem("student_iqama", savedIqama);
+  localStorage.setItem("studentID", savedIqama);
 
-  // □ إخفاء صفحة الدخول
+  const input = document.getElementById("iqamaInput");
+  if(input){
+    input.value = savedIqama;
+  }
+
   hideBox("loginBox");
 
-  // □ دخول تلقائي
   await loginStudent();
+
 });
 async function startVoiceRecord(qid){
 
@@ -2946,4 +2989,3 @@ async function uploadAudioAnswer(fileObj){
 
 </body>
 </html>
-

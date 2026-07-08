@@ -586,7 +586,27 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
-let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
+let CURRENT_IQAMA = normalizeIqama(
+  localStorage.getItem("studentID") ||
+  localStorage.getItem("student_iqama") ||
+  ""
+);
+
+window.addEventListener("load", function(){
+
+  const id =
+    localStorage.getItem("studentID") ||
+    localStorage.getItem("student_iqama");
+
+  const last = localStorage.getItem("studentLoginDate");
+  const today = new Date().toDateString();
+
+  if(id && last === today){
+    document.getElementById("iqamaInput").value = id;
+    loginStudent();
+  }
+
+});
 let CURRENT_EXAM_ID = "";
 let CURRENT_EXAM = null;
 let QUESTIONS = [];
@@ -970,7 +990,9 @@ async function loginStudent(){
 
     // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
     CURRENT_IQAMA = iqama;
-    localStorage.setItem("student_iqama", iqama);
+   localStorage.setItem("studentID", iqama);
+localStorage.setItem("student_iqama", iqama);
+localStorage.setItem("studentLoginDate", new Date().toDateString());
 
     STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     STUDENT_MAIN = STUDENT_DOCS[0];
@@ -990,7 +1012,9 @@ async function loginStudent(){
 
   }catch(err){
     console.error(err);
-    localStorage.removeItem("student_iqama");
+    localStorage.removeItem("studentID");
+localStorage.removeItem("student_iqama");
+localStorage.removeItem("studentLoginDate");
     CURRENT_IQAMA = "";
     alert("حدث خطأ أثناء تسجيل الدخول");
   }
@@ -2946,4 +2970,3 @@ async function uploadAudioAnswer(fileObj){
 
 </body>
 </html>
-

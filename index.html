@@ -620,7 +620,6 @@ function hasValidStudentLogin(){
   return !!id && last === today;
 }
 
-window.addEventListener("pageshow", function(){
 window.addEventListener("message", function(e){
 
   if(e.origin !== "https://www.prudle-education.com" &&
@@ -642,7 +641,18 @@ window.addEventListener("message", function(e){
   }
 
 });
+
+window.addEventListener("pageshow", function(){
+
   if(!hasValidStudentLogin()){
+    clearStudentLogin();
+    goStudentLogin();
+    return;
+  }
+
+  document.body.style.display = "block";
+
+});
     clearStudentLogin();
     goStudentLogin();
     return;

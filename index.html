@@ -987,15 +987,17 @@ async function loginStudent(){
 
   const iqama = normalizeIqama(document.getElementById("iqamaInput").value || "");
 
-if(!iqama){
-  CURRENT_IQAMA = "";
-  alert("أدخل رقم الهوية");
-  return;
-}
+  if(!iqama){
+    CURRENT_IQAMA = "";
+    alert("أدخل رقم الهوية");
+    return;
+  }
 
-  // مهم: إذا الرقم نفسه غير صالح لا تترك أي قيمة محفوظة قديمة
   if(iqama.length < 10){
+    localStorage.removeItem("studentID");
     localStorage.removeItem("student_iqama");
+    localStorage.removeItem("studentLoginDate");
+
     CURRENT_IQAMA = "";
     alert("رقم الهوية غير صحيح");
     return;
@@ -1010,7 +1012,10 @@ if(!iqama){
       .get();
 
     if(snap.empty){
+      localStorage.removeItem("studentID");
       localStorage.removeItem("student_iqama");
+      localStorage.removeItem("studentLoginDate");
+
       CURRENT_IQAMA = "";
       alert("الطالب غير موجود");
       LOGIN_LOADING = false;
@@ -1018,11 +1023,11 @@ if(!iqama){
       return;
     }
 
-    // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
     CURRENT_IQAMA = iqama;
-   localStorage.setItem("studentID", iqama);
-localStorage.setItem("student_iqama", iqama);
-localStorage.setItem("studentLoginDate", new Date().toDateString());
+
+    localStorage.setItem("studentID", iqama);
+    localStorage.setItem("student_iqama", iqama);
+    localStorage.setItem("studentLoginDate", new Date().toDateString());
 
     STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     STUDENT_MAIN = STUDENT_DOCS[0];
@@ -1042,9 +1047,11 @@ localStorage.setItem("studentLoginDate", new Date().toDateString());
 
   }catch(err){
     console.error(err);
+
     localStorage.removeItem("studentID");
-localStorage.removeItem("student_iqama");
-localStorage.removeItem("studentLoginDate");
+    localStorage.removeItem("student_iqama");
+    localStorage.removeItem("studentLoginDate");
+
     CURRENT_IQAMA = "";
     alert("حدث خطأ أثناء تسجيل الدخول");
   }

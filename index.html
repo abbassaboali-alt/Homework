@@ -586,100 +586,7 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
-/* حماية الطالب من الرجوع بعد تسجيل الخروج */
-function clearStudentLogin(){
-  localStorage.removeItem("studentID");
-  localStorage.removeItem("student_iqama");
-  localStorage.removeItem("studentLoginDate");
-  localStorage.setItem("studentLoggedOut", "1");
-  sessionStorage.clear();
-}
-
-function goStudentLogin(){
-  document.body.style.display = "none";
-  location.replace("https://www.prudle-education.com/log-in-out");
-}
-
-function hasValidStudentLogin(){
-  const loggedOut = localStorage.getItem("studentLoggedOut");
-
-  if(loggedOut === "1"){
-    return false;
-  }
-
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
-
-  const last = localStorage.getItem("studentLoginDate");
-  const today = new Date().toDateString();
-
-  return !!id && last === today;
-}
-
-/* استقبال دخول الطالب من prudle iframe */
-window.addEventListener("message", function(e){
-
-  if(
-    e.origin !== "https://www.prudle-education.com" &&
-    e.origin !== "https://prudle-education.com"
-  ){
-    return;
-  }
-
-  const data = e.data || {};
-
-  if(data.type === "PRUDLE_STUDENT_AUTH"){
-
-    const id = String(data.studentID || data.student_iqama || "").trim();
-
-    if(!id) return;
-
-    localStorage.removeItem("studentLoggedOut");
-
-    localStorage.setItem("studentID", id);
-    localStorage.setItem("student_iqama", id);
-    localStorage.setItem("studentLoginDate", new Date().toDateString());
-
-    const input = document.getElementById("iqamaInput");
-    if(input){
-      input.value = id;
-    }
-
-    setTimeout(function(){
-      loginStudent();
-    }, 300);
-  }
-
-});
-
-/* دخول تلقائي إذا الطالب محفوظ */
-window.addEventListener("load", function(){
-
-  if(!hasValidStudentLogin()){
-    return;
-  }
-
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
-
-  const input = document.getElementById("iqamaInput");
-  if(input){
-    input.value = id;
-  }
-
-  loginStudent();
-
-});
-
-let CURRENT_IQAMA = normalizeIqama(
-  localStorage.getItem("studentID") ||
-  localStorage.getItem("student_iqama") ||
-  ""
-);
-
-
+let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
 let CURRENT_EXAM_ID = "";
 let CURRENT_EXAM = null;
 let QUESTIONS = [];
@@ -1030,16 +937,15 @@ async function loginStudent(){
   const iqama = normalizeIqama(document.getElementById("iqamaInput").value || "");
 
   if(!iqama){
+    localStorage.removeItem("student_iqama");
     CURRENT_IQAMA = "";
     alert("أدخل رقم الهوية");
     return;
   }
 
+  // مهم: إذا الرقم نفسه غير صالح لا تترك أي قيمة محفوظة قديمة
   if(iqama.length < 10){
-    localStorage.removeItem("studentID");
     localStorage.removeItem("student_iqama");
-    localStorage.removeItem("studentLoginDate");
-
     CURRENT_IQAMA = "";
     alert("رقم الهوية غير صحيح");
     return;
@@ -1054,10 +960,7 @@ async function loginStudent(){
       .get();
 
     if(snap.empty){
-      localStorage.removeItem("studentID");
       localStorage.removeItem("student_iqama");
-      localStorage.removeItem("studentLoginDate");
-
       CURRENT_IQAMA = "";
       alert("الطالب غير موجود");
       LOGIN_LOADING = false;
@@ -1065,14 +968,9 @@ async function loginStudent(){
       return;
     }
 
-
-CURRENT_IQAMA = iqama;
-
-localStorage.removeItem("studentLoggedOut");
-
-localStorage.setItem("studentID", iqama);
-localStorage.setItem("student_iqama", iqama);
-localStorage.setItem("studentLoginDate", new Date().toDateString());
+    // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
+    CURRENT_IQAMA = iqama;
+    localStorage.setItem("student_iqama", iqama);
 
     STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     STUDENT_MAIN = STUDENT_DOCS[0];
@@ -1092,36 +990,27 @@ localStorage.setItem("studentLoginDate", new Date().toDateString());
 
   }catch(err){
     console.error(err);
-
-    localStorage.removeItem("studentID");
     localStorage.removeItem("student_iqama");
-    localStorage.removeItem("studentLoginDate");
-
     CURRENT_IQAMA = "";
     alert("حدث خطأ أثناء تسجيل الدخول");
   }
 
   LOGIN_LOADING = false;
   setLoginButtonLoading(false);
-}
-function logoutStudent(){
-
+}function logoutStudent(){
   if(EXAM_ACTIVE){
     const ok = confirm("يوجد اختبار قيد التنفيذ. هل تريد تسجيل الخروج فعلًا؟");
     if(!ok) return;
   }
 
-  clearStudentLogin();
-
+  localStorage.removeItem("student_iqama");
   CURRENT_IQAMA = "";
   CURRENT_EXAM_ID = "";
   CURRENT_EXAM = null;
   QUESTIONS = [];
   ANSWERS = {};
   CURRENT_INDEX = 0;
-
   stopTimer();
-
   EXAM_ACTIVE = false;
   AUTO_SUBMIT_FIRED = false;
   IS_SUBMITTING = false;
@@ -1132,8 +1021,17 @@ function logoutStudent(){
   SELECTED_COURSE_ID = "";
   SELECTED_COURSE = null;
 
-  location.replace("https://www.prudle-education.com/log-in-out");
-  return;
+  showBox("loginBox");
+  hideBox("studentBox");
+  hideBox("examBox");
+  hideBox("resultBox");
+
+  document.getElementById("iqamaInput").value = "";
+  document.getElementById("courseList").innerHTML = "";
+  document.getElementById("examList").innerHTML = "";
+  document.getElementById("questionContainer").innerHTML = "";
+  document.getElementById("resultContent").innerHTML = "";
+  document.getElementById("questionNav").innerHTML = "";
 }
 
 /* ================= Courses ================= */
@@ -3048,3 +2946,4 @@ async function uploadAudioAnswer(fileObj){
 
 </body>
 </html>
+

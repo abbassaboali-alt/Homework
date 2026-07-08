@@ -7,7 +7,9 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap" rel="stylesheet">
 
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js">
+
+</script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 
 <style>
@@ -971,6 +973,9 @@ async function loginStudent(){
     // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
     CURRENT_IQAMA = iqama;
     localStorage.setItem("student_iqama", iqama);
+localStorage.setItem("studentID", iqama);
+localStorage.setItem("studentLoginDate", new Date().toDateString());
+localStorage.removeItem("studentLoggedOut");
 
     STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     STUDENT_MAIN = STUDENT_DOCS[0];
@@ -2925,7 +2930,36 @@ async function uploadAudioAnswer(fileObj){
 
   return data.secure_url;
 }
+function hasValidStudentLogin(){
+  const id =
+    localStorage.getItem("studentID") ||
+    localStorage.getItem("student_iqama");
 
+  const last = localStorage.getItem("studentLoginDate");
+  const today = new Date().toDateString();
+  const loggedOut = localStorage.getItem("studentLoggedOut");
+
+  return !!id && last === today && loggedOut !== "true";
+}
+
+window.addEventListener("load", function(){
+
+  if(hasValidStudentLogin()){
+
+    const id =
+      localStorage.getItem("studentID") ||
+      localStorage.getItem("student_iqama");
+
+    const input = document.getElementById("iqamaInput");
+
+    if(input){
+      input.value = id;
+      loginStudent();
+    }
+
+  }
+
+});
 </script>
 
 </body>

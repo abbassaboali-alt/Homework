@@ -591,9 +591,7 @@ function clearStudentLogin(){
   localStorage.removeItem("studentID");
   localStorage.removeItem("student_iqama");
   localStorage.removeItem("studentLoginDate");
-
   localStorage.setItem("studentLoggedOut", "1");
-
   sessionStorage.clear();
 }
 
@@ -603,7 +601,6 @@ function goStudentLogin(){
 }
 
 function hasValidStudentLogin(){
-
   const loggedOut = localStorage.getItem("studentLoggedOut");
 
   if(loggedOut === "1"){
@@ -620,31 +617,13 @@ function hasValidStudentLogin(){
   return !!id && last === today;
 }
 
+/* استقبال دخول الطالب من prudle iframe */
 window.addEventListener("message", function(e){
 
-  if(e.origin !== "https://www.prudle-education.com" &&
-     e.origin !== "https://prudle-education.com"){
-    return;
-  }
-
-  const data = e.data || {};
-
-  if(data.type === "PRUDLE_AUTH"){
-
-    localStorage.setItem("username", data.username || "");
-    localStorage.setItem("role", data.role || "");
-    localStorage.setItem("loginDate", data.loginDate || new Date().toDateString());
-
-    localStorage.removeItem("studentLoggedOut");
-
-    document.body.style.display = "block";
-  }
-
-});
-window.addEventListener("message", function(e){
-
-  if(e.origin !== "https://www.prudle-education.com" &&
-     e.origin !== "https://prudle-education.com"){
+  if(
+    e.origin !== "https://www.prudle-education.com" &&
+    e.origin !== "https://prudle-education.com"
+  ){
     return;
   }
 
@@ -653,7 +632,6 @@ window.addEventListener("message", function(e){
   if(data.type === "PRUDLE_STUDENT_AUTH"){
 
     const id = String(data.studentID || data.student_iqama || "").trim();
-    const today = new Date().toDateString();
 
     if(!id) return;
 
@@ -661,44 +639,24 @@ window.addEventListener("message", function(e){
 
     localStorage.setItem("studentID", id);
     localStorage.setItem("student_iqama", id);
-    localStorage.setItem("studentLoginDate", today);
+    localStorage.setItem("studentLoginDate", new Date().toDateString());
 
     const input = document.getElementById("iqamaInput");
     if(input){
       input.value = id;
     }
 
-    setTimeout(()=>{
+    setTimeout(function(){
       loginStudent();
     }, 300);
   }
 
 });
-window.addEventListener("pageshow", function(){
 
-  if(!hasValidStudentLogin()){
-    clearStudentLogin();
-    goStudentLogin();
-    return;
-  }
-
-  document.body.style.display = "block";
-
-});
-    clearStudentLogin();
-    goStudentLogin();
-    return;
-  }
-
-  document.body.style.display = "block";
-
-});
-
+/* دخول تلقائي إذا الطالب محفوظ */
 window.addEventListener("load", function(){
 
   if(!hasValidStudentLogin()){
-    clearStudentLogin();
-    goStudentLogin();
     return;
   }
 
@@ -706,7 +664,11 @@ window.addEventListener("load", function(){
     localStorage.getItem("studentID") ||
     localStorage.getItem("student_iqama");
 
-  document.getElementById("iqamaInput").value = id;
+  const input = document.getElementById("iqamaInput");
+  if(input){
+    input.value = id;
+  }
+
   loginStudent();
 
 });

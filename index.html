@@ -7,9 +7,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap" rel="stylesheet">
 
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js">
-
-</script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 
 <style>
@@ -973,9 +971,6 @@ async function loginStudent(){
     // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
     CURRENT_IQAMA = iqama;
     localStorage.setItem("student_iqama", iqama);
-localStorage.setItem("studentID", iqama);
-localStorage.setItem("studentLoginDate", new Date().toDateString());
-localStorage.removeItem("studentLoggedOut");
 
     STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     STUDENT_MAIN = STUDENT_DOCS[0];
@@ -1002,25 +997,41 @@ localStorage.removeItem("studentLoggedOut");
 
   LOGIN_LOADING = false;
   setLoginButtonLoading(false);
-}
-function logoutStudent(){
-
+}function logoutStudent(){
   if(EXAM_ACTIVE){
     const ok = confirm("يوجد اختبار قيد التنفيذ. هل تريد تسجيل الخروج فعلًا؟");
     if(!ok) return;
   }
 
   localStorage.removeItem("student_iqama");
-  localStorage.removeItem("studentID");
-  localStorage.removeItem("studentLoginDate");
-
-  localStorage.setItem("studentLoggedOut","true");
-
-  sessionStorage.clear();
-
+  CURRENT_IQAMA = "";
+  CURRENT_EXAM_ID = "";
+  CURRENT_EXAM = null;
+  QUESTIONS = [];
+  ANSWERS = {};
+  CURRENT_INDEX = 0;
   stopTimer();
+  EXAM_ACTIVE = false;
+  AUTO_SUBMIT_FIRED = false;
+  IS_SUBMITTING = false;
 
-  location.replace("https://www.prudle-education.com/log-in-out");
+  STUDENT_DOCS = [];
+  STUDENT_MAIN = null;
+  STUDENT_ID = "";
+  SELECTED_COURSE_ID = "";
+  SELECTED_COURSE = null;
+
+  showBox("loginBox");
+  hideBox("studentBox");
+  hideBox("examBox");
+  hideBox("resultBox");
+
+  document.getElementById("iqamaInput").value = "";
+  document.getElementById("courseList").innerHTML = "";
+  document.getElementById("examList").innerHTML = "";
+  document.getElementById("questionContainer").innerHTML = "";
+  document.getElementById("resultContent").innerHTML = "";
+  document.getElementById("questionNav").innerHTML = "";
 }
 
 /* ================= Courses ================= */
@@ -2930,36 +2941,7 @@ async function uploadAudioAnswer(fileObj){
 
   return data.secure_url;
 }
-function hasValidStudentLogin(){
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
 
-  const last = localStorage.getItem("studentLoginDate");
-  const today = new Date().toDateString();
-  const loggedOut = localStorage.getItem("studentLoggedOut");
-
-  return !!id && last === today && loggedOut !== "true";
-}
-
-window.addEventListener("load", function(){
-
-  if(hasValidStudentLogin()){
-
-    const id =
-      localStorage.getItem("studentID") ||
-      localStorage.getItem("student_iqama");
-
-    const input = document.getElementById("iqamaInput");
-
-    if(input){
-      input.value = id;
-      loginStudent();
-    }
-
-  }
-
-});
 </script>
 
 </body>

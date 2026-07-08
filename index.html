@@ -641,7 +641,39 @@ window.addEventListener("message", function(e){
   }
 
 });
+window.addEventListener("message", function(e){
 
+  if(e.origin !== "https://www.prudle-education.com" &&
+     e.origin !== "https://prudle-education.com"){
+    return;
+  }
+
+  const data = e.data || {};
+
+  if(data.type === "PRUDLE_STUDENT_AUTH"){
+
+    const id = String(data.studentID || data.student_iqama || "").trim();
+    const today = new Date().toDateString();
+
+    if(!id) return;
+
+    localStorage.removeItem("studentLoggedOut");
+
+    localStorage.setItem("studentID", id);
+    localStorage.setItem("student_iqama", id);
+    localStorage.setItem("studentLoginDate", today);
+
+    const input = document.getElementById("iqamaInput");
+    if(input){
+      input.value = id;
+    }
+
+    setTimeout(()=>{
+      loginStudent();
+    }, 300);
+  }
+
+});
 window.addEventListener("pageshow", function(){
 
   if(!hasValidStudentLogin()){

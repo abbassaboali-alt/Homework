@@ -1018,6 +1018,14 @@ function logoutStudent(){
 
   location.replace("https://www.prudle-education.com/log-in-out");
 }
+const params = new URLSearchParams(window.location.search);
+const sid = params.get("studentID");
+
+if(sid){
+  localStorage.setItem("studentID", sid);
+  localStorage.setItem("student_iqama", sid);
+  localStorage.setItem("studentLoginDate", new Date().toDateString());
+}
 window.addEventListener("load", function(){
 
   const id =

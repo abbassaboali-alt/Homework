@@ -1019,13 +1019,37 @@ function logoutStudent(){
 
   sessionStorage.clear();
 
-  location.replace("https://www.prudle-education.com/log-in-out");
+  window.top.location.replace("https://www.prudle-education.com/log-in-out");
 }
+function goLogin(){
+  localStorage.removeItem("studentID");
+  localStorage.removeItem("student_iqama");
+  localStorage.removeItem("studentLoginDate");
+
+  if(window.location.search){
+    history.replaceState(null, "", window.location.pathname);
+  }
+
+  window.top.location.replace("https://www.prudle-education.com/log-in-out");
+}
+
+window.addEventListener("pageshow", function(e){
+  const loggedOut = localStorage.getItem("studentLoggedOut") === "1";
+
+  if(loggedOut){
+    goLogin();
+    return;
+  }
+});
+
 const params = new URLSearchParams(window.location.search);
 const sid = params.get("studentID");
 const loggedOut = localStorage.getItem("studentLoggedOut") === "1";
 
-if(sid){
+if(loggedOut){
+  goLogin();
+}
+else if(sid){
   localStorage.removeItem("studentLoggedOut");
 
   localStorage.setItem("studentID", sid);
@@ -1034,17 +1058,13 @@ if(sid){
 
   history.replaceState(null, "", window.location.pathname);
 }
-else if(loggedOut){
-  localStorage.removeItem("studentID");
-  localStorage.removeItem("student_iqama");
-  localStorage.removeItem("studentLoginDate");
-
-  if(window.location.search){
-    history.replaceState(null, "", window.location.pathname);
-  }
-}
 
 window.addEventListener("load", function(){
+
+  if(localStorage.getItem("studentLoggedOut") === "1"){
+    goLogin();
+    return;
+  }
 
   const id =
     localStorage.getItem("studentID") ||
@@ -1054,7 +1074,6 @@ window.addEventListener("load", function(){
   const today = new Date().toDateString();
 
   if(id && last === today){
-
     const input = document.getElementById("iqamaInput");
 
     if(input){

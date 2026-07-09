@@ -1011,21 +1011,37 @@ function logoutStudent(){
     if(!ok) return;
   }
 
+  localStorage.setItem("studentLoggedOut", "1");
+
   localStorage.removeItem("studentID");
   localStorage.removeItem("student_iqama");
   localStorage.removeItem("studentLoginDate");
+
   sessionStorage.clear();
 
   location.replace("https://www.prudle-education.com/log-in-out");
 }
 const params = new URLSearchParams(window.location.search);
 const sid = params.get("studentID");
+const loggedOut = localStorage.getItem("studentLoggedOut") === "1";
 
-if(sid){
+if(loggedOut){
+  localStorage.removeItem("studentID");
+  localStorage.removeItem("student_iqama");
+  localStorage.removeItem("studentLoginDate");
+
+  if(window.location.search){
+    history.replaceState(null, "", window.location.pathname);
+  }
+}
+else if(sid){
   localStorage.setItem("studentID", sid);
   localStorage.setItem("student_iqama", sid);
   localStorage.setItem("studentLoginDate", new Date().toDateString());
+
+  history.replaceState(null, "", window.location.pathname);
 }
+
 window.addEventListener("load", function(){
 
   const id =

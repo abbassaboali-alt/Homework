@@ -970,7 +970,7 @@ async function loginStudent(){
 
     // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
   CURRENT_IQAMA = iqama;
-
+localStorage.removeItem("studentLoggedOut");
 localStorage.setItem("studentID", iqama);
 localStorage.setItem("student_iqama", iqama);
 localStorage.setItem("studentLoginDate", new Date().toDateString());
@@ -1025,7 +1025,16 @@ const params = new URLSearchParams(window.location.search);
 const sid = params.get("studentID");
 const loggedOut = localStorage.getItem("studentLoggedOut") === "1";
 
-if(loggedOut){
+if(sid){
+  localStorage.removeItem("studentLoggedOut");
+
+  localStorage.setItem("studentID", sid);
+  localStorage.setItem("student_iqama", sid);
+  localStorage.setItem("studentLoginDate", new Date().toDateString());
+
+  history.replaceState(null, "", window.location.pathname);
+}
+else if(loggedOut){
   localStorage.removeItem("studentID");
   localStorage.removeItem("student_iqama");
   localStorage.removeItem("studentLoginDate");
@@ -1033,13 +1042,6 @@ if(loggedOut){
   if(window.location.search){
     history.replaceState(null, "", window.location.pathname);
   }
-}
-else if(sid){
-  localStorage.setItem("studentID", sid);
-  localStorage.setItem("student_iqama", sid);
-  localStorage.setItem("studentLoginDate", new Date().toDateString());
-
-  history.replaceState(null, "", window.location.pathname);
 }
 
 window.addEventListener("load", function(){

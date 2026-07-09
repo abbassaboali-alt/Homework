@@ -585,7 +585,59 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
+function isValidAdminLogin(){
+  const user = localStorage.getItem("username");
+  const role = localStorage.getItem("role");
+  const last = localStorage.getItem("loginDate");
+  const today = new Date().toDateString();
 
+  return !!user && !!role && last === today;
+}
+
+function isValidStudentLogin(){
+  const id =
+    localStorage.getItem("studentID") ||
+    localStorage.getItem("student_iqama");
+
+  const last = localStorage.getItem("studentLoginDate");
+  const today = new Date().toDateString();
+
+  return !!id && last === today;
+}
+
+window.addEventListener("load", function(){
+
+  if(isValidAdminLogin()){
+    const role = localStorage.getItem("role");
+
+    if(role === "admin"){
+      location.replace("https://www.prudle-education.com/dashboard-manager");
+    }
+    else if(role === "assistant"){
+      location.replace("https://www.prudle-education.com/users");
+    }
+    else{
+      location.replace("https://www.prudle-education.com/dashboard-teacher");
+    }
+
+    return;
+  }
+
+  if(
+    localStorage.getItem("studentLoggedOut") !== "1" &&
+    isValidStudentLogin()
+  ){
+    const id =
+      localStorage.getItem("studentID") ||
+      localStorage.getItem("student_iqama");
+
+    location.replace(
+      "https://www.prudle-education.com/dashboard-students?studentID=" +
+      encodeURIComponent(id)
+    );
+  }
+
+});
 let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
 let CURRENT_EXAM_ID = "";
 let CURRENT_EXAM = null;

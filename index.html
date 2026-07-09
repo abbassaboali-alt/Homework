@@ -585,59 +585,7 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
-function isValidAdminLogin(){
-  const user = localStorage.getItem("username");
-  const role = localStorage.getItem("role");
-  const last = localStorage.getItem("loginDate");
-  const today = new Date().toDateString();
 
-  return !!user && !!role && last === today;
-}
-
-function isValidStudentLogin(){
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
-
-  const last = localStorage.getItem("studentLoginDate");
-  const today = new Date().toDateString();
-
-  return !!id && last === today;
-}
-
-window.addEventListener("load", function(){
-
-  if(isValidAdminLogin()){
-    const role = localStorage.getItem("role");
-
-    if(role === "admin"){
-      location.replace("https://www.prudle-education.com/dashboard-manager");
-    }
-    else if(role === "assistant"){
-      location.replace("https://www.prudle-education.com/users");
-    }
-    else{
-      location.replace("https://www.prudle-education.com/dashboard-teacher");
-    }
-
-    return;
-  }
-
-  if(
-    localStorage.getItem("studentLoggedOut") !== "1" &&
-    isValidStudentLogin()
-  ){
-    const id =
-      localStorage.getItem("studentID") ||
-      localStorage.getItem("student_iqama");
-
-    location.replace(
-      "https://www.prudle-education.com/dashboard-students?studentID=" +
-      encodeURIComponent(id)
-    );
-  }
-
-});
 let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
 let CURRENT_EXAM_ID = "";
 let CURRENT_EXAM = null;
@@ -1022,7 +970,7 @@ async function loginStudent(){
 
     // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
   CURRENT_IQAMA = iqama;
-localStorage.removeItem("studentLoggedOut");
+
 localStorage.setItem("studentID", iqama);
 localStorage.setItem("student_iqama", iqama);
 localStorage.setItem("studentLoginDate", new Date().toDateString());
@@ -1114,6 +1062,7 @@ window.addEventListener("pageshow", function(){
 
 });
 
+
 const params = new URLSearchParams(window.location.search);
 const sid = params.get("studentID");
 
@@ -1121,13 +1070,13 @@ if(localStorage.getItem("studentLoggedOut") === "1"){
   goLogin();
 }
 else if(sid){
+
   localStorage.setItem("studentID", sid);
   localStorage.setItem("student_iqama", sid);
   localStorage.setItem("studentLoginDate", new Date().toDateString());
 
   history.replaceState(null, "", window.location.pathname);
 }
-
 window.addEventListener("load", function(){
 
   if(localStorage.getItem("studentLoggedOut") === "1"){

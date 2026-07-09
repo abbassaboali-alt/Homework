@@ -522,9 +522,7 @@ button:disabled{
 
     <div class="row">
       <div class="empty" id="studentInfo">لم يتم تحميل البيانات بعد</div>
-      <div>
-        <button class="danger" onclick="logoutStudent()">تسجيل الخروج</button>
-      </div>
+
     </div>
 
     <div id="courseList"></div>
@@ -1000,110 +998,9 @@ localStorage.setItem("studentLoginDate", new Date().toDateString());
   LOGIN_LOADING = false;
   setLoginButtonLoading(false);
 }
-function logoutStudent(){
-
-  if(EXAM_ACTIVE){
-
-    const ok = confirm(
-      "يوجد اختبار قيد التنفيذ. هل تريد تسجيل الخروج فعلًا؟"
-    );
-
-    if(!ok) return;
-  }
-
-  localStorage.setItem("studentLoggedOut", "1");
-
-  localStorage.removeItem("studentID");
-  localStorage.removeItem("student_iqama");
-  localStorage.removeItem("studentLoginDate");
-
-  sessionStorage.clear();
-
-  window.top.location.replace("https://www.prudle-education.com/log-in-out");
-}
-function hasValidStudentLogin(){
-
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
-
-  const last = localStorage.getItem("studentLoginDate");
-  const today = new Date().toDateString();
-
-  return !!id && last === today;
-}
-
-function goLogin(){
-
-  localStorage.removeItem("studentID");
-  localStorage.removeItem("student_iqama");
-  localStorage.removeItem("studentLoginDate");
-
-  sessionStorage.clear();
-
-  if(window.location.search){
-    history.replaceState(null, "", window.location.pathname);
-  }
-
-  window.top.location.replace("https://www.prudle-education.com/log-in-out");
-}
-
-window.addEventListener("pageshow", function(){
-
-  if(localStorage.getItem("studentLoggedOut") === "1"){
-    goLogin();
-    return;
-  }
-
-  if(!hasValidStudentLogin()){
-    goLogin();
-    return;
-  }
-
-});
 
 
-const params = new URLSearchParams(window.location.search);
-const sid = params.get("studentID");
 
-if(localStorage.getItem("studentLoggedOut") === "1"){
-  goLogin();
-}
-else if(sid){
-
-  localStorage.setItem("studentID", sid);
-  localStorage.setItem("student_iqama", sid);
-  localStorage.setItem("studentLoginDate", new Date().toDateString());
-
-  history.replaceState(null, "", window.location.pathname);
-}
-window.addEventListener("load", function(){
-
-  if(localStorage.getItem("studentLoggedOut") === "1"){
-    goLogin();
-    return;
-  }
-
-  if(!hasValidStudentLogin()){
-    goLogin();
-    return;
-  }
-
-  const id =
-    localStorage.getItem("studentID") ||
-    localStorage.getItem("student_iqama");
-
-  const input = document.getElementById("iqamaInput");
-
-  if(input){
-    input.value = id;
-  }
-
-  setTimeout(()=>{
-    loginStudent();
-  },300);
-
-});
 /* ================= Courses ================= */
 async function loadStudentCourses(){
   const courseList = document.getElementById("courseList");

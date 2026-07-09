@@ -1065,20 +1065,15 @@ window.addEventListener("pageshow", function(){
 const params = new URLSearchParams(window.location.search);
 const sid = params.get("studentID");
 
-if(sid){
-  localStorage.removeItem("studentLoggedOut");
-
+if(localStorage.getItem("studentLoggedOut") === "1"){
+  goLogin();
+}
+else if(sid){
   localStorage.setItem("studentID", sid);
   localStorage.setItem("student_iqama", sid);
   localStorage.setItem("studentLoginDate", new Date().toDateString());
 
   history.replaceState(null, "", window.location.pathname);
-}else{
-  const loggedOut = localStorage.getItem("studentLoggedOut") === "1";
-
-  if(loggedOut){
-    goLogin();
-  }
 }
 
 window.addEventListener("load", function(){

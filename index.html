@@ -1044,12 +1044,8 @@ window.addEventListener("pageshow", function(e){
 
 const params = new URLSearchParams(window.location.search);
 const sid = params.get("studentID");
-const loggedOut = localStorage.getItem("studentLoggedOut") === "1";
 
-if(loggedOut){
-  goLogin();
-}
-else if(sid){
+if(sid){
   localStorage.removeItem("studentLoggedOut");
 
   localStorage.setItem("studentID", sid);
@@ -1057,6 +1053,12 @@ else if(sid){
   localStorage.setItem("studentLoginDate", new Date().toDateString());
 
   history.replaceState(null, "", window.location.pathname);
+}else{
+  const loggedOut = localStorage.getItem("studentLoggedOut") === "1";
+
+  if(loggedOut){
+    goLogin();
+  }
 }
 
 window.addEventListener("load", function(){

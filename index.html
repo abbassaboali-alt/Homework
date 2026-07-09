@@ -1019,7 +1019,9 @@ function logoutStudent(){
 
   sessionStorage.clear();
 
-  window.top.location.replace("https://www.prudle-education.com/log-in-out");
+ window.top.location.replace(
+  "https://www.prudle-education.com/log-in-out"
+);
 }
 function goLogin(){
   localStorage.removeItem("studentID");

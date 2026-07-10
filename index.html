@@ -2688,153 +2688,144 @@ db.collection("results")
   })
   .then(async()=>{
 
-    await saveExamGradeToStudent(
-      CURRENT_EXAM_ID,
-      STUDENT_ID,
-      result.score
-    );
+  await saveExamGradeToStudent(
+    CURRENT_EXAM_ID,
+    STUDENT_ID,
+    result.score
+  );
 
- /* =====================================
-   HOMEWORK AUTO COUNT
-   كل اختبار Homework يُحسب مرة واحدة
-===================================== */
+  /* =====================================
+     HOMEWORK AUTO COUNT
+     كل اختبار Homework يُحسب مرة واحدة
+  ===================================== */
 
-const examSkill = String(
-  CURRENT_EXAM?.examSkill || ""
-)
-.trim()
-.toLowerCase();
+  const examSkill = String(
+    CURRENT_EXAM?.examSkill || ""
+  )
+  .trim()
+  .toLowerCase();
 
-/* فحص مهارات الأسئلة أيضًا */
-const hasHomeworkSkill = QUESTIONS.some(q =>
-  String(q.skill || "")
-    .trim()
-    .toLowerCase() === "homework"
-);
+  const hasHomeworkSkill = QUESTIONS.some(q =>
+    String(q.skill || "")
+      .trim()
+      .toLowerCase() === "homework"
+  );
 
-/* يدعم isHomework أيضًا */
-const isHomeworkExam =
-  examSkill === "homework" ||
-  CURRENT_EXAM?.isHomework === true ||
-  hasHomeworkSkill;
+  const isHomeworkExam =
+    examSkill === "homework" ||
+    CURRENT_EXAM?.isHomework === true ||
+    hasHomeworkSkill;
 
-console.log("HOMEWORK CHECK:", {
-  examSkill,
-  isHomework: CURRENT_EXAM?.isHomework,
-  hasHomeworkSkill,
-  isHomeworkExam
-});
+  console.log("HOMEWORK CHECK:", {
+    examSkill: examSkill,
+    isHomework: CURRENT_EXAM?.isHomework,
+    hasHomeworkSkill: hasHomeworkSkill,
+    isHomeworkExam: isHomeworkExam
+  });
 
-if(isHomeworkExam){
+  if(isHomeworkExam){
 
-  try{
+    try{
 
-    const homeworkDocId =
-      `${courseId}_${STUDENT_ID}_${CURRENT_EXAM_ID}`;
+      const homeworkDocId =
+        `${courseId}_${STUDENT_ID}_${CURRENT_EXAM_ID}`;
 
-    const homeworkRef =
-      db.collection("HomeworkCompleted")
-        .doc(homeworkDocId);
+      const homeworkRef =
+        db.collection("HomeworkCompleted")
+          .doc(homeworkDocId);
 
-    const studentRef =
-      db.collection("students")
-        .doc(STUDENT_ID);
+      const studentRef =
+        db.collection("students")
+          .doc(STUDENT_ID);
 
-    await db.runTransaction(async transaction => {
+      await db.runTransaction(async transaction => {
 
-      const homeworkDoc =
-        await transaction.get(homeworkRef);
+        /* يجب تنفيذ جميع عمليات القراءة أولًا */
+        const homeworkDoc =
+          await transaction.get(homeworkRef);
 
-      /* هذا الواجب محسوب سابقًا */
-      if(homeworkDoc.exists){
-        console.log("Homework already counted");
-        return;
-      }
+        const studentDoc =
+          await transaction.get(studentRef);
 
-      const studentDoc =
-        await transaction.get(studentRef);
+        if(homeworkDoc.exists){
+          console.log("Homework already counted");
+          return;
+        }
 
-      if(!studentDoc.exists){
-        throw new Error(
-          "Student document not found: " + STUDENT_ID
+        if(!studentDoc.exists){
+          throw new Error(
+            "Student document not found: " + STUDENT_ID
+          );
+        }
+
+        const studentData =
+          studentDoc.data() || {};
+
+        const oldCount =
+          Number(studentData.hwCompleted || 0);
+
+        const newCount =
+          oldCount + 1;
+
+        const newScore =
+          Math.min(newCount * 2, 10);
+
+        transaction.update(studentRef, {
+          hwCompleted: newCount,
+          hwScore: newScore
+        });
+
+        transaction.set(homeworkRef, {
+
+          studentId: STUDENT_ID || "",
+          studentIqama: CURRENT_IQAMA || "",
+          studentName: STUDENT_MAIN?.name || "",
+
+          courseId: courseId || "",
+
+          examId: CURRENT_EXAM_ID || "",
+          examTitle: CURRENT_EXAM?.title || "",
+
+          score: Number(result.score || 0),
+          percent: Number(result.percent || 0),
+
+          counted: true,
+
+          createdAt:
+            firebase.firestore
+              .FieldValue
+              .serverTimestamp()
+
+        });
+
+        console.log(
+          "Homework counted:",
+          newCount,
+          newScore
         );
-      }
-
-      const studentData =
-        studentDoc.data() || {};
-
-      const oldCount =
-        Number(studentData.hwCompleted || 0);
-
-      const newCount =
-        oldCount + 1;
-
-      const newScore =
-        Math.min(newCount * 2, 10);
-
-      transaction.update(studentRef, {
-        hwCompleted: newCount,
-        hwScore: newScore
-      });
-
-      transaction.set(homeworkRef, {
-
-        studentId: STUDENT_ID || "",
-        studentIqama: CURRENT_IQAMA || "",
-        studentName:
-          STUDENT_MAIN?.name || "",
-
-        courseId: courseId || "",
-
-        examId:
-          CURRENT_EXAM_ID || "",
-
-        examTitle:
-          CURRENT_EXAM?.title || "",
-
-        score:
-          Number(result.score || 0),
-
-        percent:
-          Number(result.percent || 0),
-
-        counted: true,
-
-        createdAt:
-          firebase.firestore
-            .FieldValue
-            .serverTimestamp()
 
       });
 
-      console.log(
-        "Homework counted:",
-        newCount,
-        newScore
+    }catch(homeworkError){
+
+      console.error(
+        "Homework count error:",
+        homeworkError
       );
 
-    });
-
-  }catch(homeworkError){
-
-    console.error(
-      "Homework count error:",
-      homeworkError
-    );
+    }
 
   }
 
-}
+})
+.catch(err=>{
 
-  })
-  .catch(err=>{
+  console.error(
+    "Result save error:",
+    err
+  );
 
-    console.error(
-      "Result save error:",
-      err
-    );
-
-  });
+});
 async function saveExamGradeToStudent(
   examId,
   studentId,

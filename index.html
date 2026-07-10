@@ -1,3 +1,8 @@
+المكتبة
+/
+Prudle_Student_Exam_Login_Logout.txt
+
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -435,6 +440,31 @@ button:disabled{
   font-size:13px;
   font-weight:700;
 }
+
+.header-auth{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-inline-start:auto;
+}
+.header-auth button{
+  width:auto;
+  min-width:130px;
+  margin:0;
+  padding:11px 16px;
+  border-radius:999px;
+  background:#fff;
+  color:#164478;
+  border:1px solid rgba(255,255,255,.55);
+  box-shadow:0 5px 14px rgba(0,0,0,.12);
+}
+.header-auth .logout-btn{
+  background:#e74c3c;
+  color:#fff;
+  border-color:#e74c3c;
+}
+
 @media(max-width:860px){
   .grid-two,
   .login-tips{
@@ -492,6 +522,10 @@ button:disabled{
     <div class="header-content">
       <h1>Prudle Student Exams</h1>
       <p>منصة الطالب للاختبارات حسب الدورة المفتوحة مع مؤقت وحفظ تلقائي ونتيجة مباشرة</p>
+    </div>
+    <div class="header-auth">
+      <button id="headerLoginBtn" type="button" onclick="showLoginScreen()">تسجيل الدخول</button>
+      <button id="headerLogoutBtn" type="button" class="logout-btn hidden" onclick="logoutStudent()">تسجيل الخروج</button>
     </div>
   </div>
 
@@ -928,6 +962,79 @@ window.addEventListener("beforeunload", function(e){
   }
 });
 
+function updateAuthButtons(isLoggedIn){
+  const loginBtn = document.getElementById("headerLoginBtn");
+  const logoutBtn = document.getElementById("headerLogoutBtn");
+
+  if(loginBtn) loginBtn.classList.toggle("hidden", isLoggedIn);
+  if(logoutBtn) logoutBtn.classList.toggle("hidden", !isLoggedIn);
+}
+
+function showLoginScreen(){
+  if(EXAM_ACTIVE){
+    alert("أنهِ الاختبار أولًا قبل العودة إلى تسجيل الدخول");
+    return;
+  }
+
+  showBox("loginBox");
+  hideBox("studentBox");
+  hideBox("examBox");
+  hideBox("resultBox");
+
+  const input = document.getElementById("iqamaInput");
+  if(input) input.focus();
+
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function logoutStudent(){
+  if(EXAM_ACTIVE && !IS_SUBMITTING){
+    const ok = confirm("يوجد اختبار قيد التنفيذ. عند تسجيل الخروج سيبقى التقدم المحفوظ، هل تريد المتابعة؟");
+    if(!ok) return;
+  }
+
+  stopTimer();
+  EXAM_ACTIVE = false;
+  IS_SUBMITTING = false;
+  AUTO_SUBMIT_FIRED = false;
+
+  localStorage.removeItem("studentID");
+  localStorage.removeItem("student_iqama");
+  localStorage.removeItem("studentLoginDate");
+  localStorage.setItem("studentLoggedOut", "true");
+
+  CURRENT_IQAMA = "";
+  CURRENT_EXAM_ID = "";
+  CURRENT_EXAM = null;
+  QUESTIONS = [];
+  ANSWERS = {};
+  CURRENT_INDEX = 0;
+  STUDENT_DOCS = [];
+  STUDENT_MAIN = null;
+  STUDENT_ID = "";
+  SELECTED_COURSE_ID = "";
+  SELECTED_COURSE = null;
+
+  const input = document.getElementById("iqamaInput");
+  if(input) input.value = "";
+
+  const courseList = document.getElementById("courseList");
+  const examList = document.getElementById("examList");
+  const questionContainer = document.getElementById("questionContainer");
+  const resultContent = document.getElementById("resultContent");
+  if(courseList) courseList.innerHTML = "";
+  if(examList) examList.innerHTML = "";
+  if(questionContainer) questionContainer.innerHTML = "";
+  if(resultContent) resultContent.innerHTML = "";
+
+  showBox("loginBox");
+  hideBox("studentBox");
+  hideBox("examBox");
+  hideBox("resultBox");
+  updateAuthButtons(false);
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
 /* ================= Login ================= */
 async function loginStudent(){
   if(LOGIN_LOADING) return;
@@ -972,6 +1079,8 @@ async function loginStudent(){
 localStorage.setItem("studentID", iqama);
 localStorage.setItem("student_iqama", iqama);
 localStorage.setItem("studentLoginDate", new Date().toDateString());
+localStorage.removeItem("studentLoggedOut");
+updateAuthButtons(true);
     STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     STUDENT_MAIN = STUDENT_DOCS[0];
     STUDENT_ID = STUDENT_MAIN.id || "";
@@ -2747,6 +2856,7 @@ window.addEventListener("load", async ()=>{
     CURRENT_IQAMA = "";
 
     showBox("loginBox");      // □ مهم
+    updateAuthButtons(false);
     hideBox("studentBox");
     hideBox("examBox");
     hideBox("resultBox");
@@ -2762,6 +2872,7 @@ window.addEventListener("load", async ()=>{
   if(input) input.value = savedIqama;
 
   // □ إخفاء صفحة الدخول
+  updateAuthButtons(true);
   hideBox("loginBox");
 
   // □ دخول تلقائي

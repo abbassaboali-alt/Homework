@@ -2694,126 +2694,137 @@ db.collection("results")
       result.score
     );
 
-    /* =====================================
-       HOMEWORK AUTO COUNT
-       كل اختبار Homework يُحسب مرة واحدة
-    ===================================== */
+ /* =====================================
+   HOMEWORK AUTO COUNT
+   كل اختبار Homework يُحسب مرة واحدة
+===================================== */
 
-    const examSkill = String(
-      CURRENT_EXAM?.examSkill || ""
-    )
+const examSkill = String(
+  CURRENT_EXAM?.examSkill || ""
+)
+.trim()
+.toLowerCase();
+
+/* فحص مهارات الأسئلة أيضًا */
+const hasHomeworkSkill = QUESTIONS.some(q =>
+  String(q.skill || "")
     .trim()
-    .toLowerCase();
+    .toLowerCase() === "homework"
+);
 
-    if(examSkill === "homework"){
+/* يدعم isHomework أيضًا */
+const isHomeworkExam =
+  examSkill === "homework" ||
+  CURRENT_EXAM?.isHomework === true ||
+  hasHomeworkSkill;
 
-      try{
+console.log("HOMEWORK CHECK:", {
+  examSkill,
+  isHomework: CURRENT_EXAM?.isHomework,
+  hasHomeworkSkill,
+  isHomeworkExam
+});
 
-        const homeworkDocId =
-          `${courseId}_${STUDENT_ID}_${CURRENT_EXAM_ID}`;
+if(isHomeworkExam){
 
-        const homeworkRef =
-          db.collection("HomeworkCompleted")
-            .doc(homeworkDocId);
+  try{
 
-        const homeworkDoc =
-          await homeworkRef.get();
+    const homeworkDocId =
+      `${courseId}_${STUDENT_ID}_${CURRENT_EXAM_ID}`;
 
-        /* إذا لم يتم احتساب هذا الواجب سابقًا */
-        if(!homeworkDoc.exists){
+    const homeworkRef =
+      db.collection("HomeworkCompleted")
+        .doc(homeworkDocId);
 
-          const studentRef =
-            db.collection("students")
-              .doc(STUDENT_ID);
+    const studentRef =
+      db.collection("students")
+        .doc(STUDENT_ID);
 
-          await db.runTransaction(
-            async transaction => {
+    await db.runTransaction(async transaction => {
 
-              const studentDoc =
-                await transaction.get(studentRef);
+      const homeworkDoc =
+        await transaction.get(homeworkRef);
 
-              if(!studentDoc.exists){
-                throw new Error(
-                  "Student document not found"
-                );
-              }
-
-              const studentData =
-                studentDoc.data() || {};
-
-              const oldCount =
-                Number(
-                  studentData.hwCompleted || 0
-                );
-
-              const newCount =
-                oldCount + 1;
-
-              const newScore =
-                Math.min(
-                  newCount * 2,
-                  10
-                );
-
-              transaction.update(
-                studentRef,
-                {
-                  hwCompleted: newCount,
-                  hwScore: newScore
-                }
-              );
-
-              transaction.set(
-                homeworkRef,
-                {
-                  studentId: STUDENT_ID || "",
-                  studentIqama:
-                    CURRENT_IQAMA || "",
-
-                  courseId: courseId || "",
-                  examId:
-                    CURRENT_EXAM_ID || "",
-
-                  examTitle:
-                    CURRENT_EXAM?.title || "",
-
-                  score:
-                    Number(result.score || 0),
-
-                  counted: true,
-
-                  createdAt:
-                    firebase.firestore
-                      .FieldValue
-                      .serverTimestamp()
-                }
-              );
-
-            }
-          );
-
-          console.log(
-            "Homework counted successfully"
-          );
-
-        }else{
-
-          console.log(
-            "Homework already counted"
-          );
-
-        }
-
-      }catch(homeworkError){
-
-        console.error(
-          "Homework count error:",
-          homeworkError
-        );
-
+      /* هذا الواجب محسوب سابقًا */
+      if(homeworkDoc.exists){
+        console.log("Homework already counted");
+        return;
       }
 
-    }
+      const studentDoc =
+        await transaction.get(studentRef);
+
+      if(!studentDoc.exists){
+        throw new Error(
+          "Student document not found: " + STUDENT_ID
+        );
+      }
+
+      const studentData =
+        studentDoc.data() || {};
+
+      const oldCount =
+        Number(studentData.hwCompleted || 0);
+
+      const newCount =
+        oldCount + 1;
+
+      const newScore =
+        Math.min(newCount * 2, 10);
+
+      transaction.update(studentRef, {
+        hwCompleted: newCount,
+        hwScore: newScore
+      });
+
+      transaction.set(homeworkRef, {
+
+        studentId: STUDENT_ID || "",
+        studentIqama: CURRENT_IQAMA || "",
+        studentName:
+          STUDENT_MAIN?.name || "",
+
+        courseId: courseId || "",
+
+        examId:
+          CURRENT_EXAM_ID || "",
+
+        examTitle:
+          CURRENT_EXAM?.title || "",
+
+        score:
+          Number(result.score || 0),
+
+        percent:
+          Number(result.percent || 0),
+
+        counted: true,
+
+        createdAt:
+          firebase.firestore
+            .FieldValue
+            .serverTimestamp()
+
+      });
+
+      console.log(
+        "Homework counted:",
+        newCount,
+        newScore
+      );
+
+    });
+
+  }catch(homeworkError){
+
+    console.error(
+      "Homework count error:",
+      homeworkError
+    );
+
+  }
+
+}
 
   })
   .catch(err=>{

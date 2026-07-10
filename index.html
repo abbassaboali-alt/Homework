@@ -2661,151 +2661,169 @@ for (const skill of Object.keys(result.skills || {})) {
     });
 
     /* ================= □ حفظ النتيجة بالخلفية ================= */
-db.collection("results").doc(resultDocId).set({
-  studentId: STUDENT_ID || "",
-  studentName: STUDENT_MAIN?.name || "",
-  studentIqama: CURRENT_IQAMA,
+db.collection("results")
+  .doc(resultDocId)
+  .set({
 
-  examId: CURRENT_EXAM_ID,
-  examTitle: CURRENT_EXAM?.title || "",
+    studentId: STUDENT_ID || "",
+    studentName: STUDENT_MAIN?.name || "",
+    studentIqama: CURRENT_IQAMA,
 
-  courseId: courseId,
+    examId: CURRENT_EXAM_ID,
+    examTitle: CURRENT_EXAM?.title || "",
 
-  score: result.score,
-  totalDegree: result.totalDegree,
-  percent: result.percent,
+    courseId: courseId,
 
-  answers: cleanAnswers,
-  details: JSON.parse(JSON.stringify(result.details)),
+    score: result.score,
+    totalDegree: result.totalDegree,
+    percent: result.percent,
 
-  createdAt: new Date()
-})
-.then(async()=>{
+    answers: cleanAnswers,
+    details: JSON.parse(
+      JSON.stringify(result.details)
+    ),
 
-await saveExamGradeToStudent(
-  CURRENT_EXAM_ID,
-  STUDENT_ID,
-  result.score
-);
-})
-.catch(err=>{
-  console.error("Result save error:", err);
-});
-/* =========================
-   HOMEWORK AUTO LINK
-========================= */
+    createdAt: new Date()
 
-try{
-/* ربط الواجب بالمهارة المختارة */
+  })
+  .then(async()=>{
 
-if(CURRENT_EXAM?.isHomework === true){
+    await saveExamGradeToStudent(
+      CURRENT_EXAM_ID,
+      STUDENT_ID,
+      result.score
+    );
 
-  const skills = {};
+    /* =====================================
+       HOMEWORK AUTO COUNT
+       كل اختبار Homework يُحسب مرة واحدة
+    ===================================== */
 
-  QUESTIONS.forEach(q=>{
+    const examSkill = String(
+      CURRENT_EXAM?.examSkill || ""
+    )
+    .trim()
+    .toLowerCase();
 
-    const skill = String(q.skill || "").trim();
+    if(examSkill === "homework"){
 
-    if(
-      !skill ||
-      skill === "General" ||
-      skill === "Homework"
-    ) return;
+      try{
 
-    if(!skills[skill]){
-      skills[skill] = [];
+        const homeworkDocId =
+          `${courseId}_${STUDENT_ID}_${CURRENT_EXAM_ID}`;
+
+        const homeworkRef =
+          db.collection("HomeworkCompleted")
+            .doc(homeworkDocId);
+
+        const homeworkDoc =
+          await homeworkRef.get();
+
+        /* إذا لم يتم احتساب هذا الواجب سابقًا */
+        if(!homeworkDoc.exists){
+
+          const studentRef =
+            db.collection("students")
+              .doc(STUDENT_ID);
+
+          await db.runTransaction(
+            async transaction => {
+
+              const studentDoc =
+                await transaction.get(studentRef);
+
+              if(!studentDoc.exists){
+                throw new Error(
+                  "Student document not found"
+                );
+              }
+
+              const studentData =
+                studentDoc.data() || {};
+
+              const oldCount =
+                Number(
+                  studentData.hwCompleted || 0
+                );
+
+              const newCount =
+                oldCount + 1;
+
+              const newScore =
+                Math.min(
+                  newCount * 2,
+                  10
+                );
+
+              transaction.update(
+                studentRef,
+                {
+                  hwCompleted: newCount,
+                  hwScore: newScore
+                }
+              );
+
+              transaction.set(
+                homeworkRef,
+                {
+                  studentId: STUDENT_ID || "",
+                  studentIqama:
+                    CURRENT_IQAMA || "",
+
+                  courseId: courseId || "",
+                  examId:
+                    CURRENT_EXAM_ID || "",
+
+                  examTitle:
+                    CURRENT_EXAM?.title || "",
+
+                  score:
+                    Number(result.score || 0),
+
+                  counted: true,
+
+                  createdAt:
+                    firebase.firestore
+                      .FieldValue
+                      .serverTimestamp()
+                }
+              );
+
+            }
+          );
+
+          console.log(
+            "Homework counted successfully"
+          );
+
+        }else{
+
+          console.log(
+            "Homework already counted"
+          );
+
+        }
+
+      }catch(homeworkError){
+
+        console.error(
+          "Homework count error:",
+          homeworkError
+        );
+
+      }
+
     }
 
-    skills[skill].push(q);
+  })
+  .catch(err=>{
+
+    console.error(
+      "Result save error:",
+      err
+    );
 
   });
-
-  for(const skillName in skills){
-
-    const docId =
-      `${courseId}_${STUDENT_ID}_${skillName}`;
-
-    await db.collection("EnglishActivities")
-      .doc(docId)
-      .set({
-
-        studentId: STUDENT_ID,
-        studentIqama: CURRENT_IQAMA,
-        studentName: STUDENT_MAIN?.name || "",
-
-        courseId: courseId,
-
-        examId: CURRENT_EXAM_ID,
-        examTitle: CURRENT_EXAM?.title || "",
-
-        skill: skillName,
-
-        score: Math.round(result.percent),
-        percent: result.percent,
-
-        updatedAt:
-          firebase.firestore.FieldValue.serverTimestamp()
-
-      },{merge:true});
-
-  }
-
-}
-  // إذا كان الاختبار واجب
-  if(CURRENT_EXAM?.isHomework === true){
-
-    const studentRef =
-      db.collection("students")
-        .doc(STUDENT_ID);
-
-    const studentDoc =
-      await studentRef.get();
-
-    if(studentDoc.exists){
-
-      const s = studentDoc.data();
-
-      let count =
-        Number(s.hwCompleted || 0);
-
-      // زيادة عدد الواجبات
-      count += 1;
-
-      // كل واجب = درجتين
-      const score =
-        Math.min(count * 2, 10);
-
-      await studentRef.update({
-
-        hwCompleted: count,
-        hwScore: score
-
-      });
-
-      console.log(
-        "✅ Homework Updated:",
-        count,
-        score
-      );
-    }
-  }
-
-}catch(err){
-
-  console.error(
-    "Homework link error:",
-    err
-  );
-}
-
-  }catch(err){
-
-    console.error(err);
-    alert("حدث خطأ أثناء حفظ النتيجة");
-
-    IS_SUBMITTING = false;
-  }
-}
 async function saveExamGradeToStudent(
   examId,
   studentId,

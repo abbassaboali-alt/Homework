@@ -528,10 +528,18 @@ button:disabled{
     <h2>دخول الطالب</h2>
 
     <div class="grid-two">
-      <div>
-        <input id="iqamaInput" placeholder="رقم الهوية / Iqama">
-        <button id="loginBtn" onclick="loginStudent()">دخول</button>
-      </div>
+ <div>
+  <input id="iqamaInput" placeholder="رقم الهوية / Iqama">
+
+  <button
+    id="loginBtn"
+    type="button"
+    onclick="loginStudent()">
+
+    دخول
+
+  </button>
+</div>
       <div class="note">
         سيتم ادخال الطالب الى <b>الكويز او الاختبار</b> بواسطة <b>ID</b>، ثم عرض <b>الاختبار</b> الخاصة به،من خلال  <b>الهوية او الاقامة</b>.
       </div>
@@ -1102,9 +1110,58 @@ updateAuthButtons(true);
   LOGIN_LOADING = false;
   setLoginButtonLoading(false);
 }
+/* =========================================
+   تسجيل دخول الطالب تلقائيًا من لوحة الطالب
+========================================= */
 
+async function autoLoginStudentFromDashboard(){
 
+  const params =
+    new URLSearchParams(window.location.search);
 
+  const studentID =
+    normalizeIqama(
+      params.get("studentID") ||
+      params.get("student_iqama") ||
+      ""
+    );
+
+  if(!studentID){
+    updateAuthButtons(false);
+    return;
+  }
+
+  /* توحيد بيانات الطالب داخل صفحة GitHub */
+  localStorage.setItem("studentID", studentID);
+  localStorage.setItem("student_iqama", studentID);
+  localStorage.setItem(
+    "studentLoginDate",
+    new Date().toDateString()
+  );
+
+  localStorage.removeItem("studentLoggedOut");
+
+  const iqamaInput =
+    document.getElementById("iqamaInput");
+
+  if(iqamaInput){
+    iqamaInput.value = studentID;
+  }
+
+  /* تنفيذ دخول الطالب تلقائيًا */
+  await loginStudent();
+}
+
+/* تشغيل الدخول التلقائي عند فتح الصفحة */
+window.addEventListener("DOMContentLoaded", function(){
+
+  setTimeout(function(){
+
+    autoLoginStudentFromDashboard();
+
+  },300);
+
+});
 /* ================= Courses ================= */
 async function loadStudentCourses(){
   const courseList = document.getElementById("courseList");

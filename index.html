@@ -2826,6 +2826,30 @@ db.collection("results")
   );
 
 });
+  }catch(err){
+
+    console.error(
+      "Submit exam error:",
+      err
+    );
+
+    alert("حدث خطأ أثناء حفظ النتيجة");
+
+    IS_SUBMITTING = false;
+    AUTO_SUBMIT_FIRED = false;
+
+    setExamButtonsDisabled(false);
+
+    const btn =
+      document.getElementById("submitBtn");
+
+    if(btn){
+      btn.innerText = "إنهاء الاختبار";
+    }
+
+  }
+
+}
 async function saveExamGradeToStudent(
   examId,
   studentId,

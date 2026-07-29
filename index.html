@@ -1966,9 +1966,38 @@ if(!examLinked && !hasLinkedQuestion){
   return;
 
 }
-    const visibleQuestions = Array.isArray(exam.visibleQuestions)
-      ? exam.visibleQuestions
-      : [];
+    /*
+      توافق ترتيب الأسئلة الجديد:
+      - visibleQuestionsByCourse يُستخدم فقط لمعرفة الأسئلة المحددة للدورة إن وُجد.
+      - visibleQuestions القديم يبقى للتوافق مع الاختبارات السابقة.
+      - الترتيب الفعلي لا يؤخذ من هذه القوائم؛ بل من حقل order المحفوظ في السؤال.
+    */
+    const visibleQuestionsByCourse =
+      exam.visibleQuestionsByCourse &&
+      typeof exam.visibleQuestionsByCourse === "object"
+        ? exam.visibleQuestionsByCourse
+        : {};
+
+    const courseVisibleQuestions =
+      Array.isArray(
+        visibleQuestionsByCourse[
+          String(SELECTED_COURSE_ID || "").trim()
+        ]
+      )
+        ? visibleQuestionsByCourse[
+            String(SELECTED_COURSE_ID || "").trim()
+          ]
+        : [];
+
+    const legacyVisibleQuestions =
+      Array.isArray(exam.visibleQuestions)
+        ? exam.visibleQuestions
+        : [];
+
+    const visibleQuestionIds =
+      courseVisibleQuestions.length
+        ? courseVisibleQuestions
+        : legacyVisibleQuestions;
 
 const groupSkillsByCourse =
   exam.groupSkillsByCourse || {};
@@ -2185,124 +2214,57 @@ sortedQuestionDocs.forEach(doc=>{
 
 }else{
 
-  if(visibleQuestions.length){
+  /*
+    عند إيقاف Shuffle:
+    الترتيب المعتمد دائمًا هو حقل order الذي تحفظه صفحة الإدارة
+    بعد السحب أو التحريك أو النسخ. القوائم القديمة لا تعيد ترتيب الأسئلة.
+  */
+  QUESTIONS.sort((a,b)=>{
 
-    const getCreatedTime = value => {
+    const orderA = Number(a.order);
+    const orderB = Number(b.order);
 
-      if(!value){
-        return 0;
-      }
+    const hasOrderA =
+      Number.isFinite(orderA) &&
+      orderA > 0;
 
-      if(
-        typeof value.toMillis ===
-        "function"
-      ){
-        return value.toMillis();
-      }
+    const hasOrderB =
+      Number.isFinite(orderB) &&
+      orderB > 0;
 
-      if(
-        typeof value.seconds ===
-        "number"
-      ){
-        return value.seconds * 1000;
-      }
+    if(hasOrderA && hasOrderB && orderA !== orderB){
+      return orderA - orderB;
+    }
 
-      const time =
-        new Date(value)
-          .getTime();
+    if(hasOrderA && !hasOrderB){
+      return -1;
+    }
 
-      return Number.isFinite(time)
-        ? time
-        : 0;
-    };
+    if(!hasOrderA && hasOrderB){
+      return 1;
+    }
 
-    QUESTIONS.sort((a,b)=>{
+    const createdA =
+      getCreatedAtValue({
+        createdAt:a.createdAt
+      });
 
-      const indexA =
-        visibleQuestions.indexOf(
-          a.id
-        );
+    const createdB =
+      getCreatedAtValue({
+        createdAt:b.createdAt
+      });
 
-      const indexB =
-        visibleQuestions.indexOf(
-          b.id
-        );
+    if(createdA !== createdB){
+      return createdA - createdB;
+    }
 
-      const existsA =
-        indexA !== -1;
+    return String(a.id)
+      .localeCompare(
+        String(b.id)
+      );
+  });
 
-      const existsB =
-        indexB !== -1;
-
-      /*
-        الأسئلة الموجودة في visibleQuestions
-        تحافظ على ترتيبها المحدد.
-      */
-      if(
-        existsA &&
-        existsB
-      ){
-        return indexA - indexB;
-      }
-
-      /*
-        السؤال الجديد غير الموجود داخل
-        visibleQuestions ينتقل إلى النهاية.
-      */
-      if(
-        existsA &&
-        !existsB
-      ){
-        return -1;
-      }
-
-      if(
-        !existsA &&
-        existsB
-      ){
-        return 1;
-      }
-
-      /*
-        إذا كان السؤالان جديدين:
-        الأقدم أولًا والأحدث أخيرًا.
-      */
-      const orderA =
-        Number(a.order || 0);
-
-      const orderB =
-        Number(b.order || 0);
-
-      if(
-        orderA > 0 &&
-        orderB > 0 &&
-        orderA !== orderB
-      ){
-        return orderA - orderB;
-      }
-
-      const createdA =
-        getCreatedTime(
-          a.createdAt
-        );
-
-      const createdB =
-        getCreatedTime(
-          b.createdAt
-        );
-
-      if(createdA !== createdB){
-        return createdA - createdB;
-      }
-
-      return String(a.id)
-        .localeCompare(
-          String(b.id)
-        );
-    });
-  }
-
-} // □ هذا القوس كان ناقص
+}
     if(QUESTIONS.length === 0){
       alert("لا توجد أسئلة متاحة لهذا الاختبار");
       return;

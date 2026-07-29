@@ -1973,14 +1973,107 @@ if(!examLinked && !hasLinkedQuestion){
 const groupSkillsByCourse =
   exam.groupSkillsByCourse || {};
 
-const sortedQuestionDocs = qSnap.docs.sort((a, b) => {
+/*
+  ترتيب الأسئلة:
+  1) إذا كانت قيمة order صحيحة ومختلفة، يتم احترامها.
+  2) إذا كانت order غير موجودة أو متساوية، يعتمد على createdAt تصاعديًا.
+  3) السؤال الجديد يظهر في النهاية دائمًا.
+*/
+const sortedQuestionDocs =
+  [...qSnap.docs].sort((a,b)=>{
 
-  const A = a.data().order ?? 0;
-  const B = b.data().order ?? 0;
+    const dataA =
+      a.data() || {};
 
-  return A - B;
+    const dataB =
+      b.data() || {};
 
-});
+    const orderA =
+      Number(dataA.order);
+
+    const orderB =
+      Number(dataB.order);
+
+    const hasOrderA =
+      Number.isFinite(orderA) &&
+      orderA > 0;
+
+    const hasOrderB =
+      Number.isFinite(orderB) &&
+      orderB > 0;
+
+    /*
+      إذا كان السؤالان يملكان ترتيبًا صالحًا،
+      نستخدم order أولًا.
+    */
+    if(
+      hasOrderA &&
+      hasOrderB &&
+      orderA !== orderB
+    ){
+      return orderA - orderB;
+    }
+
+    /*
+      تحويل createdAt إلى رقم يمكن مقارنته.
+    */
+    const getQuestionCreatedTime = value => {
+
+      if(!value){
+        return 0;
+      }
+
+      if(
+        typeof value.toMillis ===
+        "function"
+      ){
+        return value.toMillis();
+      }
+
+      if(
+        typeof value.seconds ===
+        "number"
+      ){
+        return (
+          value.seconds *
+          1000
+        );
+      }
+
+      const time =
+        new Date(value)
+          .getTime();
+
+      return Number.isFinite(time)
+        ? time
+        : 0;
+    };
+
+    const createdA =
+      getQuestionCreatedTime(
+        dataA.createdAt
+      );
+
+    const createdB =
+      getQuestionCreatedTime(
+        dataB.createdAt
+      );
+
+    /*
+      الأقدم أولًا، والأحدث في النهاية.
+    */
+    if(createdA !== createdB){
+      return createdA - createdB;
+    }
+
+    /*
+      ترتيب ثابت في حال تساوي كل القيم.
+    */
+    return String(a.id)
+      .localeCompare(
+        String(b.id)
+      );
+  });
 if(qSnap.empty){
       alert("لا توجد أسئلة في هذا الاختبار");
       return;
@@ -2027,7 +2120,24 @@ sortedQuestionDocs.forEach(doc=>{
   || "General"
 
 ).trim(),
-    isMain: String(q.question || "").trim().startsWith("##")
+    isMain:
+      String(
+        q.question ||
+        ""
+      )
+      .trim()
+      .startsWith("##"),
+
+    /*
+      نحتفظ بهذه القيم لاستخدامها في
+      الترتيب الثابت لاحقًا.
+    */
+    order:
+      Number(q.order || 0),
+
+    createdAt:
+      q.createdAt ||
+      null
   };
 
   if(prepared.type === "order"){
@@ -2076,8 +2186,119 @@ sortedQuestionDocs.forEach(doc=>{
 }else{
 
   if(visibleQuestions.length){
+
+    const getCreatedTime = value => {
+
+      if(!value){
+        return 0;
+      }
+
+      if(
+        typeof value.toMillis ===
+        "function"
+      ){
+        return value.toMillis();
+      }
+
+      if(
+        typeof value.seconds ===
+        "number"
+      ){
+        return value.seconds * 1000;
+      }
+
+      const time =
+        new Date(value)
+          .getTime();
+
+      return Number.isFinite(time)
+        ? time
+        : 0;
+    };
+
     QUESTIONS.sort((a,b)=>{
-      return visibleQuestions.indexOf(a.id) - visibleQuestions.indexOf(b.id);
+
+      const indexA =
+        visibleQuestions.indexOf(
+          a.id
+        );
+
+      const indexB =
+        visibleQuestions.indexOf(
+          b.id
+        );
+
+      const existsA =
+        indexA !== -1;
+
+      const existsB =
+        indexB !== -1;
+
+      /*
+        الأسئلة الموجودة في visibleQuestions
+        تحافظ على ترتيبها المحدد.
+      */
+      if(
+        existsA &&
+        existsB
+      ){
+        return indexA - indexB;
+      }
+
+      /*
+        السؤال الجديد غير الموجود داخل
+        visibleQuestions ينتقل إلى النهاية.
+      */
+      if(
+        existsA &&
+        !existsB
+      ){
+        return -1;
+      }
+
+      if(
+        !existsA &&
+        existsB
+      ){
+        return 1;
+      }
+
+      /*
+        إذا كان السؤالان جديدين:
+        الأقدم أولًا والأحدث أخيرًا.
+      */
+      const orderA =
+        Number(a.order || 0);
+
+      const orderB =
+        Number(b.order || 0);
+
+      if(
+        orderA > 0 &&
+        orderB > 0 &&
+        orderA !== orderB
+      ){
+        return orderA - orderB;
+      }
+
+      const createdA =
+        getCreatedTime(
+          a.createdAt
+        );
+
+      const createdB =
+        getCreatedTime(
+          b.createdAt
+        );
+
+      if(createdA !== createdB){
+        return createdA - createdB;
+      }
+
+      return String(a.id)
+        .localeCompare(
+          String(b.id)
+        );
     });
   }
 
@@ -2536,7 +2757,7 @@ function renderAllQuestions(){
 
         <div class="question-head">
           <div>
-<span class="badge info">Question ${CURRENT_INDEX + 1} / ${QUESTIONS.length}</span>
+<span class="badge info">Question ${index + 1} / ${QUESTIONS.length}</span>
 <span class="badge ok">Points ${q.degree}</span>
             <span class="badge info">${typeLabel}</span>
           </div>

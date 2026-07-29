@@ -556,6 +556,75 @@ button:disabled{
   border:1px solid #d7dfeb;
   background:#fff;
 }
+
+/* =========================================
+   MATCHING IMAGES — ONE IMAGE + DROPDOWN
+========================================= */
+.match-image-dropdown-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:14px;
+  margin-top:14px;
+}
+.match-image-dropdown-card{
+  border:2px solid #d9e6fb;
+  border-radius:17px;
+  padding:12px;
+  background:#fff;
+  transition:.18s;
+}
+.match-image-dropdown-card.answered{
+  border-color:#164478;
+  background:#f2f7fd;
+  box-shadow:0 0 0 3px rgba(22,68,120,.08);
+}
+.match-image-dropdown-card img{
+  display:block;
+  width:100%;
+  height:165px;
+  object-fit:contain;
+  border-radius:12px;
+  background:#f8fbff;
+}
+.match-image-dropdown-card select{
+  margin-top:10px;
+  direction:ltr;
+  text-align:left;
+  font-weight:800;
+}
+.match-image-dropdown-note{
+  margin-top:12px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:#eef5ff;
+  color:#164478;
+  font-weight:800;
+  text-align:center;
+}
+@media(max-width:600px){
+  .match-image-dropdown-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+  .match-image-dropdown-card{
+    padding:9px;
+  }
+  .match-image-dropdown-card img{
+    height:120px;
+  }
+  .match-image-dropdown-card select{
+    font-size:13px;
+    padding:10px 8px;
+  }
+}
+@media(max-width:390px){
+  .match-image-dropdown-grid{
+    grid-template-columns:1fr;
+  }
+  .match-image-dropdown-card img{
+    height:175px;
+  }
+}
 @media(max-width:520px){
   .match-options-grid{
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -917,59 +986,166 @@ function renderMatchingQuestion(question){
       question
     );
 
-  let html =
-    `<div class="match-question-list">`;
+  const pairs =
+    Array.isArray(question.correct)
+      ? question.correct
+      : [];
 
-  (question.correct || [])
-    .forEach((pair,index)=>{
-
-      const currentValue =
+  const imageOnlyMode =
+    options.length > 0 &&
+    options.every(option =>
+      Boolean(
         String(
-          currentAnswers[index] ||
+          option?.mediaUrl ||
+          ""
+        ).trim()
+      )
+    );
+
+  /*
+    IMAGE MATCHING:
+    Each image appears only once.
+    A dropdown is displayed directly below the image.
+  */
+  if(imageOnlyMode){
+
+    let html = `
+      <div class="match-image-dropdown-note">
+        Select the matching word from the dropdown below each image.
+      </div>
+
+      <div class="match-image-dropdown-grid">
+    `;
+
+    options.forEach((option,optionIndex)=>{
+
+      const optionValue =
+        String(
+          option.value ||
           ""
         );
 
+      let selectedLeftIndex = "";
+
+      pairs.forEach((pair,pairIndex)=>{
+
+        if(
+          String(
+            currentAnswers[pairIndex] ||
+            ""
+          ) === optionValue
+        ){
+          selectedLeftIndex =
+            String(pairIndex);
+        }
+      });
+
       html += `
-        <div class="match-question-row">
+        <div class="
+          match-image-dropdown-card
+          ${selectedLeftIndex !== "" ? "answered" : ""}
+        ">
 
-          <div class="match-left-item">
-            ${esc(pair.left || "")}
-          </div>
+          <img
+            src="${esc(option.mediaUrl)}"
+            alt="Matching image ${optionIndex + 1}">
 
-          <div class="match-options-grid">
+          <select
+            ${IS_SUBMITTING ? "disabled" : ""}
+            onchange='saveMatchImageDropdown(
+              ${JSON.stringify(question.id)},
+              ${JSON.stringify(optionValue)},
+              this.value
+            )'>
 
-            ${options.map(option=>{
+            <option value="">
+              Select the matching word
+            </option>
 
-              const optionValue =
-                String(
-                  option.value ||
-                  ""
-                );
+            ${pairs.map((pair,pairIndex)=>{
 
-              const selected =
-                currentValue === optionValue;
+              const pairIndexValue =
+                String(pairIndex);
 
               return `
-                <button
-                  type="button"
-                  class="match-choice ${selected ? "selected" : ""}"
-                  ${IS_SUBMITTING ? "disabled" : ""}
-                  onclick='saveMatchAnswer(
-                    ${JSON.stringify(question.id)},
-                    ${index},
-                    ${JSON.stringify(optionValue)}
-                  )'>
-
-                  ${renderMatchChoiceContent(option)}
-
-                </button>
+                <option
+                  value="${pairIndexValue}"
+                  ${
+                    selectedLeftIndex === pairIndexValue
+                      ? "selected"
+                      : ""
+                  }>
+                  ${esc(pair.left || "")}
+                </option>
               `;
             }).join("")}
 
-          </div>
+          </select>
         </div>
       `;
     });
+
+    html += `</div>`;
+
+    return html;
+  }
+
+  /*
+    TEXT OR MIXED MATCHING:
+    Keep the standard left-item matching layout.
+  */
+  let html =
+    `<div class="match-question-list">`;
+
+  pairs.forEach((pair,index)=>{
+
+    const currentValue =
+      String(
+        currentAnswers[index] ||
+        ""
+      );
+
+    html += `
+      <div class="match-question-row">
+
+        <div class="match-left-item">
+          ${esc(pair.left || "")}
+        </div>
+
+        <div class="match-options-grid">
+
+          ${options.map(option=>{
+
+            const optionValue =
+              String(
+                option.value ||
+                ""
+              );
+
+            const selected =
+              currentValue === optionValue;
+
+            return `
+              <button
+                type="button"
+                class="match-choice ${selected ? "selected" : ""}"
+                ${IS_SUBMITTING ? "disabled" : ""}
+                onclick='saveMatchAnswer(
+                  ${JSON.stringify(question.id)},
+                  ${index},
+                  ${JSON.stringify(optionValue)}
+                )'>
+
+                ${renderMatchChoiceContent(option)}
+
+              </button>
+            `;
+          }).join("")}
+
+        </div>
+      </div>
+    `;
+  });
 
   html += `</div>`;
 
@@ -2513,6 +2689,58 @@ function saveTextAnswer(qid, val){
   ANSWERS[qid] = val;
   saveExamProgress();
   updateProgressUI(); // □ مهم
+}
+
+function saveMatchImageDropdown(
+  questionId,
+  imageValue,
+  leftIndexValue
+){
+
+  if(IS_SUBMITTING){
+    return;
+  }
+
+  if(!ANSWERS[questionId]){
+    ANSWERS[questionId] = {};
+  }
+
+  /*
+    Remove this image from any previous word,
+    so the same image cannot be assigned twice.
+  */
+  Object.keys(
+    ANSWERS[questionId]
+  ).forEach(key=>{
+
+    if(
+      String(
+        ANSWERS[questionId][key] ||
+        ""
+      ) ===
+      String(imageValue)
+    ){
+      ANSWERS[questionId][key] = "";
+    }
+  });
+
+  if(
+    leftIndexValue !== ""
+  ){
+
+    /*
+      Remove the old image assigned to this word,
+      then assign the selected image.
+    */
+    ANSWERS[questionId][
+      String(leftIndexValue)
+    ] =
+      String(imageValue);
+  }
+
+  saveExamProgress();
+  renderCurrentQuestion();
+  updateProgressUI();
 }
 
 function saveMatchAnswer(qid,index,val){

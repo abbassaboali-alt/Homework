@@ -1777,32 +1777,58 @@ function renderCurrentQuestion(){
   }
 
   // □ الحل هنا
-  if(ONE_PAGE_MODE){
+if(ONE_PAGE_MODE){
 
-    renderAllQuestions();
+  renderAllQuestions();
 
-    // إخفاء التنقل
-    const nav = document.getElementById("questionNav");
-    const prev = document.getElementById("prevBtn");
-    const next = document.getElementById("nextBtn");
-
-    if(nav) nav.style.display = "none";
-    if(prev) prev.style.display = "none";
-    if(next) next.style.display = "none";
-
-    return;
-  }
-
-  // □ رجّعهم إذا كان الوضع عادي
   const nav = document.getElementById("questionNav");
   const prev = document.getElementById("prevBtn");
   const next = document.getElementById("nextBtn");
+  const submit = document.getElementById("submitBtn");
 
-  if(nav) nav.style.display = "flex";
-  if(prev) prev.style.display = "block";
-  if(next) next.style.display = "block";if(ONE_PAGE_MODE){
-  renderAllQuestions();
+  // في وضع عرض جميع الأسئلة لا نحتاج السابق والتالي
+  if(nav) nav.style.display = "none";
+  if(prev) prev.style.display = "none";
+  if(next) next.style.display = "none";
+
+  // يظهر زر إنهاء الاختبار أسفل جميع الأسئلة
+  if(submit) submit.style.display = "block";
+
   return;
+}
+
+// التحكم في أزرار التنقل وإنهاء الاختبار
+const nav = document.getElementById("questionNav");
+const prev = document.getElementById("prevBtn");
+const next = document.getElementById("nextBtn");
+const submit = document.getElementById("submitBtn");
+
+if(nav){
+  nav.style.display = "flex";
+}
+
+// زر السابق لا يظهر في السؤال الأول
+if(prev){
+  prev.style.display =
+    CURRENT_INDEX > 0
+      ? "block"
+      : "none";
+}
+
+// زر التالي يظهر في جميع الأسئلة ما عدا السؤال الأخير
+if(next){
+  next.style.display =
+    CURRENT_INDEX < QUESTIONS.length - 1
+      ? "block"
+      : "none";
+}
+
+// زر إنهاء الاختبار يظهر في السؤال الأخير فقط
+if(submit){
+  submit.style.display =
+    CURRENT_INDEX === QUESTIONS.length - 1
+      ? "block"
+      : "none";
 }
 
   const q = QUESTIONS[CURRENT_INDEX];

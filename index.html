@@ -663,6 +663,58 @@ button:disabled{
   }
 
 }
+
+/* =========================================
+   FILL IN THE BLANKS
+========================================= */
+.fill-student-grid{
+  display:grid;
+  gap:12px;
+  margin-top:14px;
+}
+.fill-student-grid.horizontal{
+  grid-template-columns:repeat(var(--fill-columns,10),minmax(90px,1fr));
+}
+.fill-student-grid.vertical{
+  grid-template-columns:1fr;
+}
+.fill-student-cell{
+  min-height:58px;
+  border:1px solid #d9e6fb;
+  border-radius:14px;
+  padding:10px;
+  background:#f8fbff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  direction:ltr;
+  text-align:left;
+}
+.fill-student-grid.vertical .fill-student-cell{
+  justify-content:flex-start;
+}
+.fill-student-cell.fixed{
+  font-weight:900;
+  color:#164478;
+}
+.fill-student-cell input{
+  margin:0;
+  min-width:80px;
+  direction:ltr;
+  text-align:center;
+  font-weight:800;
+}
+.fill-student-label{
+  font-weight:900;
+  white-space:nowrap;
+}
+@media(max-width:700px){
+  .fill-student-grid.horizontal{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -893,6 +945,49 @@ function renderMedia(mediaType, mediaUrl){
     return `<div class="question-media"><audio controls src="${mediaUrl}"></audio></div>`;
   }
   return "";
+}
+
+function renderFillQuestion(question){
+  const items = Array.isArray(question?.fillItems) ? question.fillItems : [];
+  const answers = ANSWERS[question.id] && typeof ANSWERS[question.id] === "object"
+    ? ANSWERS[question.id]
+    : {};
+  const layout = question.fillLayout === "vertical" ? "vertical" : "horizontal";
+  const columns = Math.max(1, Math.min(12, Number(question.fillColumns || 10)));
+  let blankIndex = 0;
+
+  const cells = items.map((item, itemIndex)=>{
+    const mode = item?.mode === "fixed" ? "fixed" : "blank";
+    const display = String(item?.display || "").trim();
+
+    if(mode === "fixed"){
+      return `<div class="fill-student-cell fixed">${esc(display)}</div>`;
+    }
+
+    const currentBlankIndex = blankIndex++;
+    const currentValue = String(answers[currentBlankIndex] || "");
+    const label = display || String(itemIndex + 1);
+
+    return `
+      <div class="fill-student-cell blank">
+        ${layout === "vertical" ? `<span class="fill-student-label">${esc(label)}</span>` : ""}
+        <input
+          type="text"
+          value="${esc(currentValue)}"
+          placeholder="Answer"
+          ${IS_SUBMITTING ? "disabled" : ""}
+          oninput='saveFillAnswer(${JSON.stringify(question.id)},${currentBlankIndex},this.value)'>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div
+      class="fill-student-grid ${layout}"
+      style="--fill-columns:${columns}">
+      ${cells}
+    </div>
+  `;
 }
 
 let CURRENT_EXAM_MATCH_RESULT_OPTIONS = [];
@@ -1353,6 +1448,14 @@ function isQuestionAnswered(q){
   /* ===== TEXT ===== */
   if(q.type === "text"){
     return String(ans || "").trim() !== "";
+  }
+
+  /* ===== FILL IN THE BLANKS ===== */
+  if(q.type === "fill"){
+    if(!ans || typeof ans !== "object") return false;
+    const total = (q.fillItems || []).filter(item => item?.mode !== "fixed").length;
+    const filled = Object.values(ans).filter(v => String(v).trim() !== "");
+    return total > 0 && filled.length === total;
   }
 
   /* ===== MATCH ===== */
@@ -2133,6 +2236,13 @@ sortedQuestionDocs.forEach(doc=>{
     correct: q.correct,
     degree: Number(q.degree || 1),
     type: q.type || "mcq",
+    fillItems: Array.isArray(q.fillItems) ? q.fillItems.map(item=>({
+      display:String(item?.display || ""),
+      answer:String(item?.answer || ""),
+      mode:item?.mode === "fixed" ? "fixed" : "blank"
+    })) : [],
+    fillLayout: q.fillLayout === "vertical" ? "vertical" : "horizontal",
+    fillColumns: Math.max(1,Math.min(12,Number(q.fillColumns || 10))),
     mediaType: q.mediaType || "none",
     mediaUrl: q.mediaUrl || "",
     showMedia: q.showMedia === true,
@@ -2514,6 +2624,7 @@ if(submit){
   if(q.type === "order") typeLabel = "Rearrange";
   else if(q.type === "text") typeLabel = "Text Answer";
   else if(q.type === "match") typeLabel = "Matching";
+  else if(q.type === "fill") typeLabel = "Fill in the Blanks";
 
   let html = `
     <div class="question-card">
@@ -2661,6 +2772,11 @@ if(q.type === "voice"){
     `;
   }
 
+  /* ================= FILL IN THE BLANKS ================= */
+  else if(q.type === "fill"){
+    html += renderFillQuestion(q);
+  }
+
   /* ================= MATCH ================= */
 else if(q.type === "match"){
 
@@ -2713,6 +2829,7 @@ function renderAllQuestions(){
     if(q.type === "order") typeLabel = "Rearrange";
     else if(q.type === "text") typeLabel = "Text Answer";
     else if(q.type === "match") typeLabel = "Matching";
+    else if(q.type === "fill") typeLabel = "Fill in the Blanks";
 
     html += `
       <div class="question-card">
@@ -2824,6 +2941,10 @@ function renderAllQuestions(){
       html += `</div>`;
     }
 
+    else if(q.type === "fill"){
+      html += renderFillQuestion(q);
+    }
+
     else if(q.type === "match"){
 
       html +=
@@ -2872,6 +2993,16 @@ function saveTextAnswer(qid, val){
   ANSWERS[qid] = val;
   saveExamProgress();
   updateProgressUI(); // □ مهم
+}
+
+function saveFillAnswer(questionId, blankIndex, value){
+  if(IS_SUBMITTING) return;
+  if(!ANSWERS[questionId] || typeof ANSWERS[questionId] !== "object"){
+    ANSWERS[questionId] = {};
+  }
+  ANSWERS[questionId][String(blankIndex)] = value;
+  saveExamProgress();
+  updateProgressUI();
 }
 
 function saveMatchImageDropdown(
@@ -3023,6 +3154,31 @@ function calculateExamResult(){
         earned = deg;
       }
     }
+    /* ================= FILL IN THE BLANKS ================= */
+    else if(q.type === "fill"){
+      const items = Array.isArray(q.fillItems) ? q.fillItems : [];
+      const blanks = items.filter(item => item?.mode !== "fixed");
+      const answerMap = ANSWERS[q.id] && typeof ANSWERS[q.id] === "object"
+        ? ANSWERS[q.id]
+        : {};
+      let correctCount = 0;
+
+      blanks.forEach((item,index)=>{
+        const student = normalizeTextAnswer(answerMap[index] || "");
+        const accepted = String(item?.answer || "")
+          .split("|")
+          .map(value => normalizeTextAnswer(value))
+          .filter(Boolean);
+        if(student && accepted.includes(student)){
+          correctCount++;
+        }
+      });
+
+      if(blanks.length > 0){
+        earned = (correctCount / blanks.length) * deg;
+      }
+    }
+
 /* ================= VOICE ================= */
 else if(q.type === "voice"){
 
@@ -3099,6 +3255,9 @@ const skillName = (q.skill && q.skill.trim()) || "General";
       skill: skillName, // □ مهم
 
       options: q.options || [],
+      fillItems: q.fillItems || [],
+      fillLayout: q.fillLayout || "horizontal",
+      fillColumns: q.fillColumns || 10,
       correctAnswer: q.correct,
       studentAnswer: ANSWERS[q.id],
       isCorrect: earned === deg
@@ -3203,6 +3362,32 @@ const skillName = (q.skill && q.skill.trim()) || "General";
           ${esc(correct)}
         </div>
       `;
+    }
+
+    /* ===== FILL IN THE BLANKS ===== */
+    else if(d.type === "fill"){
+      const answerMap = d.studentAnswer && typeof d.studentAnswer === "object"
+        ? d.studentAnswer
+        : {};
+      const fillItems = Array.isArray(d.fillItems) ? d.fillItems : [];
+      let blankIndex = 0;
+
+      fillItems.forEach(item=>{
+        if(item?.mode === "fixed") return;
+        const student = String(answerMap[blankIndex] || "");
+        const correct = String(item?.answer || "");
+        const ok = normalizeTextAnswer(student) && correct.split("|")
+          .map(v=>normalizeTextAnswer(v))
+          .includes(normalizeTextAnswer(student));
+        html += `
+          <div style="margin-top:8px;padding:10px;border-radius:10px;background:${ok?'#d1fae5':'#fee2e2'};border:1px solid ${ok?'#10b981':'#ef4444'};direction:ltr;text-align:left">
+            <b>${esc(item?.display || `Blank ${blankIndex+1}`)}:</b>
+            ${esc(student || "No answer")}
+            <div><b>Correct:</b> ${esc(correct.replaceAll('|',' / '))}</div>
+          </div>
+        `;
+        blankIndex++;
+      });
     }
 
     /* ===== ORDER (□ تم التعديل هنا) ===== */

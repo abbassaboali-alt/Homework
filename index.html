@@ -668,15 +668,26 @@ button:disabled{
    FILL IN THE BLANKS
 ========================================= */
 .fill-student-grid{
-  display:grid;
   gap:12px;
   margin-top:14px;
+  direction:ltr;
+  text-align:left;
+  width:100%;
 }
 .fill-student-grid.horizontal{
-  grid-template-columns:repeat(var(--fill-columns,10),minmax(90px,1fr));
+  display:flex;
+  flex-direction:row;
+  flex-wrap:wrap;
+  justify-content:flex-start;
+  align-items:stretch;
 }
 .fill-student-grid.vertical{
+  display:grid;
   grid-template-columns:1fr;
+}
+.fill-student-grid.horizontal .fill-student-cell{
+  flex:0 0 140px;
+  width:140px;
 }
 .fill-student-cell{
   min-height:58px;
@@ -699,6 +710,7 @@ button:disabled{
   color:#164478;
 }
 .fill-student-cell input{
+  width:100%;
   margin:0;
   min-width:80px;
   direction:ltr;
@@ -709,9 +721,23 @@ button:disabled{
   font-weight:900;
   white-space:nowrap;
 }
+.fill-question-head{
+  direction:ltr;
+  text-align:left;
+}
 @media(max-width:700px){
   .fill-student-grid.horizontal{
-    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .fill-student-grid.horizontal .fill-student-cell{
+    width:auto;
+    min-width:0;
+  }
+}
+@media(max-width:390px){
+  .fill-student-grid.horizontal{
+    grid-template-columns:1fr;
   }
 }
 
@@ -984,7 +1010,9 @@ function renderFillQuestion(question){
   return `
     <div
       class="fill-student-grid ${layout}"
-      style="--fill-columns:${columns}">
+      dir="ltr"
+      lang="en"
+      aria-label="Fill in the blanks">
       ${cells}
     </div>
   `;
@@ -2628,10 +2656,10 @@ if(submit){
 
   let html = `
     <div class="question-card">
-      <div class="question-head">
+      <div class="question-head ${q.type === "fill" ? "fill-question-head" : ""}">
         <div>
-          <span class="badge info">السؤال ${CURRENT_INDEX + 1} / ${QUESTIONS.length}</span>
-          <span class="badge ok">الدرجة ${q.degree}</span>
+          <span class="badge info">Question ${CURRENT_INDEX + 1} / ${QUESTIONS.length}</span>
+          <span class="badge ok">Points ${q.degree}</span>
           <span class="badge info">${typeLabel}</span>
         </div>
       </div>
@@ -2834,7 +2862,7 @@ function renderAllQuestions(){
     html += `
       <div class="question-card">
 
-        <div class="question-head">
+        <div class="question-head ${q.type === "fill" ? "fill-question-head" : ""}">
           <div>
 <span class="badge info">Question ${index + 1} / ${QUESTIONS.length}</span>
 <span class="badge ok">Points ${q.degree}</span>

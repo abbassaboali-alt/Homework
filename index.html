@@ -668,84 +668,122 @@ button:disabled{
    FILL IN THE BLANKS
 ========================================= */
 .fill-student-grid{
-  gap:12px;
   margin-top:14px;
   direction:ltr;
   text-align:left;
   width:100%;
 }
+
+/* Horizontal: شبكة بعدد الأعمدة المحفوظ في السؤال */
 .fill-student-grid.horizontal{
-  display:flex;
-  flex-direction:row;
-  flex-wrap:wrap;
-  justify-content:flex-start;
-  align-items:stretch;
+  display:grid;
+  grid-template-columns:repeat(var(--fill-columns,10),minmax(0,1fr));
+  gap:0;
+  border-top:1px solid #9ca3af;
+  border-left:1px solid #9ca3af;
+  background:#fff;
+  overflow:hidden;
 }
+
+/* Vertical: عنصر واحد تحت الآخر */
 .fill-student-grid.vertical{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  justify-content:flex-start;
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  max-width:520px;
 }
-.fill-student-grid.horizontal .fill-student-cell,
-.fill-student-grid.vertical .fill-student-cell{
-  flex:0 0 auto;
-  width:210px;
-  max-width:100%;
-}
+
 .fill-student-cell{
-  min-height:58px;
-  border:1px solid #d9e6fb;
-  border-radius:14px;
+  min-width:0;
+  min-height:82px;
   padding:10px;
-  background:#f8fbff;
+  background:#fff;
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:10px;
-  direction:ltr;
-  text-align:left;
-}
-.fill-student-grid.vertical .fill-student-cell{
-  justify-content:flex-start;
-}
-.fill-student-cell.fixed{
-  font-weight:900;
-  color:#164478;
-}
-.fill-student-cell input{
-  width:100%;
-  margin:0;
-  min-width:80px;
+  gap:8px;
   direction:ltr;
   text-align:center;
-  font-weight:800;
 }
+
+/* حدود متصلة مثل الجدول في الوضع الأفقي */
+.fill-student-grid.horizontal .fill-student-cell{
+  border-right:1px solid #9ca3af;
+  border-bottom:1px solid #9ca3af;
+  border-radius:0;
+}
+
+/* بطاقات مستقلة في الوضع العامودي */
+.fill-student-grid.vertical .fill-student-cell{
+  min-height:58px;
+  justify-content:flex-start;
+  border:1px solid #d9e6fb;
+  border-radius:14px;
+  background:#f8fbff;
+  text-align:left;
+}
+
+.fill-student-cell.fixed{
+  font-weight:900;
+  color:#111827;
+  font-size:22px;
+}
+
+.fill-student-cell.blank input{
+  width:100%;
+  min-width:0;
+  margin:0;
+  padding:8px 6px;
+  border:0;
+  border-bottom:2px dotted #111827;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  direction:ltr;
+  text-align:center;
+  font-size:18px;
+  font-weight:900;
+}
+
+.fill-student-grid.vertical .fill-student-cell.blank input{
+  border:1px solid #d7dfeb;
+  border-radius:10px;
+  background:#fff;
+}
+
+.fill-student-cell.blank input:focus{
+  border-color:#164478;
+  box-shadow:none;
+}
+
 .fill-student-label{
   font-weight:900;
   white-space:nowrap;
 }
+
 .fill-question-head{
   direction:ltr;
   text-align:left;
 }
-@media(max-width:700px){
+
+/* المحافظة على شكل الشبكة في الشاشات الصغيرة مع تمرير أفقي */
+@media(max-width:900px){
   .fill-student-grid.horizontal{
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-  .fill-student-grid.horizontal .fill-student-cell{
-    width:auto;
-    min-width:0;
-  }
-  .fill-student-grid.vertical .fill-student-cell{
-    width:210px;
-    max-width:100%;
+    overflow-x:auto;
+    grid-template-columns:repeat(
+      var(--fill-columns,10),
+      minmax(90px,1fr)
+    );
   }
 }
-@media(max-width:390px){
-  .fill-student-grid.horizontal{
-    grid-template-columns:1fr;
+
+@media(max-width:520px){
+  .fill-student-grid.vertical{
+    max-width:100%;
+  }
+
+  .fill-student-cell.fixed{
+    font-size:19px;
   }
 }
 
@@ -1022,6 +1060,7 @@ function renderFillQuestion(question){
   return `
     <div
       class="fill-student-grid ${layout}"
+      style="--fill-columns:${layout === "horizontal" ? columns : 1}"
       dir="ltr"
       lang="en"
       aria-label="Fill in the blanks">

@@ -1000,11 +1000,15 @@ function renderFillQuestion(question){
 
     const currentBlankIndex = blankIndex++;
     const currentValue = String(answers[currentBlankIndex] || "");
-    const label = display || String(itemIndex + 1);
+    const label = display;
 
     return `
       <div class="fill-student-cell blank">
-        ${layout === "vertical" ? `<span class="fill-student-label">${esc(label)}</span>` : ""}
+        ${
+          layout === "vertical" && label
+            ? `<span class="fill-student-label">${esc(label)}</span>`
+            : ""
+        }
         <input
           type="text"
           value="${esc(currentValue)}"

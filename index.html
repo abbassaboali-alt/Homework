@@ -3135,6 +3135,11 @@ function prevQuestion(){
 }
 
 /* ================= Calculate Result ================= */
+function roundExamMark(value){
+  const number = Number(value || 0);
+  return Math.round((number + Number.EPSILON) * 100) / 100;
+}
+
 function calculateExamResult(){
 
   let score = 0;
@@ -3215,7 +3220,12 @@ function calculateExamResult(){
       });
 
       if(blanks.length > 0){
-        earned = (correctCount / blanks.length) * deg;
+        /*
+          الدرجة المكتوبة للسؤال هي الدرجة الكلية.
+          درجة كل فراغ = الدرجة الكلية ÷ عدد الفراغات.
+        */
+        const markPerBlank = deg / blanks.length;
+        earned = roundExamMark(correctCount * markPerBlank);
       }
     }
 
@@ -3260,13 +3270,12 @@ else if(q.type === "voice"){
         pairs.length;
 
       if(totalPairs > 0){
-
-        earned =
-          (
-            correctCount /
-            totalPairs
-          ) *
-          deg;
+        /*
+          الدرجة المكتوبة للسؤال هي الدرجة الكلية.
+          درجة كل زوج صحيح = الدرجة الكلية ÷ عدد الأزواج.
+        */
+        const markPerPair = deg / totalPairs;
+        earned = roundExamMark(correctCount * markPerPair);
       }
     }
 
@@ -3283,7 +3292,8 @@ const skillName = (q.skill && q.skill.trim()) || "General";
     skills[skillName].total += deg;
 
     /* ================= */
-    score += earned;
+    earned = roundExamMark(earned);
+    score = roundExamMark(score + earned);
 
     details.push({
       questionId: q.id,

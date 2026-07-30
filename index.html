@@ -682,12 +682,16 @@ button:disabled{
   align-items:stretch;
 }
 .fill-student-grid.vertical{
-  display:grid;
-  grid-template-columns:1fr;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
 }
-.fill-student-grid.horizontal .fill-student-cell{
-  flex:0 0 140px;
-  width:140px;
+.fill-student-grid.horizontal .fill-student-cell,
+.fill-student-grid.vertical .fill-student-cell{
+  flex:0 0 auto;
+  width:210px;
+  max-width:100%;
 }
 .fill-student-cell{
   min-height:58px;
@@ -733,6 +737,10 @@ button:disabled{
   .fill-student-grid.horizontal .fill-student-cell{
     width:auto;
     min-width:0;
+  }
+  .fill-student-grid.vertical .fill-student-cell{
+    width:210px;
+    max-width:100%;
   }
 }
 @media(max-width:390px){

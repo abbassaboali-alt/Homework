@@ -477,6 +477,44 @@ button:disabled{
 }
 
 /* =========================================
+   TEXT ANSWER — VARIABLE NUMBER OF LINES
+========================================= */
+.text-answer-box{
+  width:100%;
+  margin-top:12px;
+  direction:ltr;
+  text-align:left;
+}
+.text-answer-box textarea{
+  width:100%;
+  margin:0;
+  padding:12px 14px;
+  border:1px solid #d1d5db;
+  border-radius:12px;
+  background-color:#fff;
+  direction:ltr;
+  text-align:left;
+  line-height:32px;
+  font-size:16px;
+  resize:vertical;
+  background-image:repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    #cbd5e1 31px,
+    #cbd5e1 32px
+  );
+  background-origin:content-box;
+  background-clip:content-box;
+}
+.text-answer-lines-note{
+  margin-top:7px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+
+/* =========================================
    MATCHING: WORD ↔ WORD / WORD ↔ IMAGE
 ========================================= */
 .match-question-list{
@@ -2315,6 +2353,7 @@ sortedQuestionDocs.forEach(doc=>{
     correct: q.correct,
     degree: Number(q.degree || 1),
     type: q.type || "mcq",
+    answerLines: Math.max(1,Math.min(20,Number(q.answerLines || 4))),
     fillItems: Array.isArray(q.fillItems) ? q.fillItems.map(item=>({
       display:String(item?.display || ""),
       answer:String(item?.answer || ""),
@@ -2834,20 +2873,21 @@ if(q.type === "voice"){
   else if(q.type === "text"){
 
     const currentValue = ANSWERS[q.id] || "";
+    const answerLines = Math.max(1,Math.min(20,Number(q.answerLines || 4)));
 
     html += `
-      <textarea
-        placeholder="Write your answer here..."
-        ${IS_SUBMITTING ? "disabled" : ""}
-        oninput="saveTextAnswer('${q.id}', this.value)"
-        style="
-          margin-top:12px;
-          width:100%;
-          padding:12px;
-          border-radius:12px;
-          border:1px solid #d1d5db;
-        "
-      >${esc(currentValue)}</textarea>
+      <div class="text-answer-box">
+        <textarea
+          rows="${answerLines}"
+          placeholder="Write your answer here..."
+          ${IS_SUBMITTING ? "disabled" : ""}
+          oninput="saveTextAnswer('${q.id}', this.value)"
+          style="min-height:${answerLines * 32 + 26}px"
+        >${esc(currentValue)}</textarea>
+        <div class="text-answer-lines-note">
+          Answer space: ${answerLines} line${answerLines === 1 ? "" : "s"}
+        </div>
+      </div>
     `;
   }
 
@@ -2971,20 +3011,21 @@ function renderAllQuestions(){
     else if(q.type === "text"){
 
       const currentValue = ANSWERS[q.id] || "";
+      const answerLines = Math.max(1,Math.min(20,Number(q.answerLines || 4)));
 
       html += `
-        <textarea
-          placeholder="اكتب إجابتك هنا..."
-          ${IS_SUBMITTING ? "disabled" : ""}
-          oninput="saveTextAnswer('${q.id}', this.value)"
-          style="
-            margin-top:12px;
-            width:100%;
-            padding:12px;
-            border-radius:12px;
-            border:1px solid #d1d5db;
-          "
-        >${esc(currentValue)}</textarea>
+        <div class="text-answer-box">
+          <textarea
+            rows="${answerLines}"
+            placeholder="Write your answer here..."
+            ${IS_SUBMITTING ? "disabled" : ""}
+            oninput="saveTextAnswer('${q.id}', this.value)"
+            style="min-height:${answerLines * 32 + 26}px"
+          >${esc(currentValue)}</textarea>
+          <div class="text-answer-lines-note">
+            Answer space: ${answerLines} line${answerLines === 1 ? "" : "s"}
+          </div>
+        </div>
       `;
     }
 

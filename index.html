@@ -1431,8 +1431,15 @@ function getExamStorageKey(examId, iqama){
 }
 
 function getResultDocId(examId){
-  const studentKey = STUDENT_ID ? `student_${STUDENT_ID}` : `iqama_${CURRENT_IQAMA}`;
-  return `${examId}__${studentKey}`;
+  const studentKey = STUDENT_ID
+    ? `student_${STUDENT_ID}`
+    : `iqama_${CURRENT_IQAMA}`;
+
+  const courseKey = SELECTED_COURSE_ID
+    ? `course_${SELECTED_COURSE_ID}`
+    : "course_unknown";
+
+  return `${examId}__${courseKey}__${studentKey}`;
 }
 
 async function getExistingResult(examId){
@@ -1994,11 +2001,55 @@ async function loadStudentCourses(){
 }
 
 async function selectCourse(courseId){
-  SELECTED_COURSE_ID = courseId;
+  SELECTED_COURSE_ID = String(courseId || "").trim();
+
+  const courseStudent = STUDENT_DOCS.find(student =>
+    String(student.courseId || "").trim() === SELECTED_COURSE_ID
+  );
+
+  if(courseStudent){
+    STUDENT_MAIN = courseStudent;
+    STUDENT_ID = courseStudent.id;
+  }else{
+    try{
+      const studentSnap = await db.collection("students")
+        .where("iqama","==",CURRENT_IQAMA)
+        .where("courseId","==",SELECTED_COURSE_ID)
+        .get();
+
+      if(!studentSnap.empty){
+        const doc = studentSnap.docs[0];
+
+        STUDENT_MAIN = {
+          id:doc.id,
+          ...doc.data()
+        };
+
+        STUDENT_ID = doc.id;
+
+        if(!STUDENT_DOCS.some(item => item.id === doc.id)){
+          STUDENT_DOCS.push(STUDENT_MAIN);
+        }
+      }else{
+        console.warn(
+          "لم يتم العثور على سجل الطالب في الدورة:",
+          SELECTED_COURSE_ID
+        );
+      }
+    }catch(error){
+      console.error("تعذر تحديد سجل الطالب للدورة:",error);
+    }
+  }
 
   try{
-    const cDoc = await db.collection("Courses").doc(courseId).get();
-    SELECTED_COURSE = cDoc.exists ? { id:cDoc.id, ...cDoc.data() } : null;
+    const cDoc = await db.collection("Courses")
+      .doc(SELECTED_COURSE_ID)
+      .get();
+
+    SELECTED_COURSE = cDoc.exists
+      ? {id:cDoc.id,...cDoc.data()}
+      : null;
+
   }catch(err){
     console.error(err);
     SELECTED_COURSE = null;
@@ -3845,11 +3896,17 @@ db.collection("results")
   .set({
 
     studentId: STUDENT_ID || "",
+    studentDocId: STUDENT_ID || "",
     studentName: STUDENT_MAIN?.name || "",
     studentIqama: CURRENT_IQAMA,
 
     examId: CURRENT_EXAM_ID,
     examTitle: CURRENT_EXAM?.title || "",
+    examCategory:
+      CURRENT_EXAM?.examCategory ||
+      CURRENT_EXAM?.examType ||
+      CURRENT_EXAM?.category ||
+      "",
 
     courseId: courseId,
 
@@ -4035,22 +4092,12 @@ async function saveExamGradeToStudent(
   finalScore
 ){
   try{
-
-    if(!examId || !studentId){
-      console.error("Missing examId or studentId", {
-        examId,
-        studentId
-      });
-      return;
-    }
-
     const examDoc = await db.collection("exams")
-      .doc(examId)
+      .doc(String(examId || ""))
       .get();
 
     if(!examDoc.exists){
-      console.error("Exam document not found:", examId);
-      return;
+      throw new Error("Exam document was not found");
     }
 
     const exam = examDoc.data() || {};
@@ -4062,38 +4109,30 @@ async function saveExamGradeToStudent(
       ""
     ).trim();
 
-    const examTitle = String(
-      exam.title || ""
-    ).trim().toLowerCase();
-
     const normalizedValue = originalCategory
       .toLowerCase()
-      .replace(/[\s_-]+/g, "");
+      .replace(/[\s_-]+/g,"");
 
     let category = "";
 
-    /* دعم القيم الجديدة والقديمة */
     if(
       normalizedValue === "midterm" ||
       normalizedValue === "midtermexam"
     ){
       category = "midterm";
     }
-
     else if(
       normalizedValue === "final" ||
       normalizedValue === "finalexam"
     ){
       category = "finalExam";
     }
-
     else if(
       normalizedValue === "listening" ||
       normalizedValue === "listeningexam"
     ){
       category = "listening";
     }
-
     else if(
       normalizedValue === "speaking" ||
       normalizedValue === "speakingexam"
@@ -4101,84 +4140,125 @@ async function saveExamGradeToStudent(
       category = "speaking";
     }
 
-    /* دعم الاختبارات القديمة التي لا تحتوي على examCategory */
-    if(!category){
-
-      if(
-        examTitle.includes("midterm") ||
-        examTitle.includes("mid term")
-      ){
-        category = "midterm";
-      }
-
-      else if(
-        examTitle.includes("final exam") ||
-        examTitle === "final"
-      ){
-        category = "finalExam";
-      }
-
-      else if(examTitle.includes("listening")){
-        category = "listening";
-      }
-
-      else if(examTitle.includes("speaking")){
-        category = "speaking";
-      }
-    }
-
-    /* الكويز العادي لا ينتقل إلى جدول الدرجات */
     if(
       normalizedValue === "quizevaluation" ||
       normalizedValue === "quiz"
     ){
-      console.log("Regular quiz: grade not transferred");
+      console.log(
+        "Quiz and Evaluation result saved without grade-column transfer"
+      );
       return;
     }
 
     if(!category){
-      console.warn(
-        "Exam category was not recognized:",
-        {
-          examId,
-          originalCategory,
-          examTitle
-        }
+      throw new Error(
+        `Exam category was not recognized: ${originalCategory}`
       );
-      return;
     }
 
     const score = Number(finalScore);
 
     if(!Number.isFinite(score)){
-      console.error("Invalid exam score:", finalScore);
-      return;
+      throw new Error(`Invalid exam score: ${finalScore}`);
+    }
+
+    let targetStudent = STUDENT_DOCS.find(student =>
+      String(student.courseId || "").trim() ===
+      String(SELECTED_COURSE_ID || "").trim()
+    );
+
+    if(!targetStudent){
+      const studentSnap = await db.collection("students")
+        .where("iqama","==",CURRENT_IQAMA)
+        .where("courseId","==",SELECTED_COURSE_ID)
+        .get();
+
+      if(!studentSnap.empty){
+        const doc = studentSnap.docs[0];
+
+        targetStudent = {
+          id:doc.id,
+          ...doc.data()
+        };
+      }
+    }
+
+    if(!targetStudent && studentId){
+      const fallbackDoc = await db.collection("students")
+        .doc(String(studentId))
+        .get();
+
+      if(
+        fallbackDoc.exists &&
+        String(fallbackDoc.data()?.courseId || "").trim() ===
+        String(SELECTED_COURSE_ID || "").trim()
+      ){
+        targetStudent = {
+          id:fallbackDoc.id,
+          ...fallbackDoc.data()
+        };
+      }
+    }
+
+    if(!targetStudent?.id){
+      throw new Error(
+        `Student record was not found for iqama ${CURRENT_IQAMA} and course ${SELECTED_COURSE_ID}`
+      );
     }
 
     await db.collection("students")
-      .doc(String(studentId))
+      .doc(targetStudent.id)
       .set({
-        [category]: score,
-        [`${category}ExamId`]: examId,
+        [category]:score,
+        [`${category}ExamId`]:examId,
         [`${category}UpdatedAt`]:
           firebase.firestore.FieldValue.serverTimestamp()
-      }, {
-        merge: true
+      },{
+        merge:true
       });
 
-    console.log("✅ Grade transferred successfully:", {
-      studentId,
+    STUDENT_ID = targetStudent.id;
+    STUDENT_MAIN = targetStudent;
+    STUDENT_MAIN[category] = score;
+
+    const localIndex = STUDENT_DOCS.findIndex(
+      student => student.id === targetStudent.id
+    );
+
+    if(localIndex >= 0){
+      STUDENT_DOCS[localIndex][category] = score;
+    }else{
+      STUDENT_DOCS.push(STUDENT_MAIN);
+    }
+
+    console.log("✅ Grade transferred successfully:",{
+      studentId:targetStudent.id,
+      studentIqama:CURRENT_IQAMA,
+      courseId:SELECTED_COURSE_ID,
+      examId,
       category,
       score
     });
 
   }catch(error){
+    console.error("❌ Error transferring grade:",error);
 
-    console.error(
-      "❌ Error transferring grade to student:",
-      error
-    );
+    try{
+      await db.collection("gradeTransferErrors").add({
+        studentId:String(studentId || ""),
+        studentIqama:String(CURRENT_IQAMA || ""),
+        courseId:String(SELECTED_COURSE_ID || ""),
+        examId:String(examId || ""),
+        score:Number(finalScore || 0),
+        message:String(error?.message || error || ""),
+        createdAt:
+          firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }catch(logError){
+      console.error("تعذر تسجيل خطأ نقل الدرجة:",logError);
+    }
 
+    throw error;
   }
 }
 function formatAnswer(ans){

@@ -1843,6 +1843,66 @@ window.addEventListener("DOMContentLoaded", function(){
   },300);
 
 });
+
+/* =========================================
+   COURSE / EXAM VISIBILITY
+   تظهر الدورة فقط إذا كان بها اختبار يحتوي
+   على سؤال واحد ظاهر على الأقل لهذه الدورة
+========================================= */
+function getVisibleQuestionIdsForCourse(exam, courseId){
+  const selectedCourseId = String(courseId || "").trim();
+
+  const byCourse =
+    exam &&
+    exam.visibleQuestionsByCourse &&
+    typeof exam.visibleQuestionsByCourse === "object"
+      ? exam.visibleQuestionsByCourse
+      : {};
+
+  const hasCourseRule =
+    Object.prototype.hasOwnProperty.call(byCourse, selectedCourseId);
+
+  if(hasCourseRule){
+    return Array.isArray(byCourse[selectedCourseId])
+      ? byCourse[selectedCourseId]
+          .map(id => String(id || "").trim())
+          .filter(Boolean)
+      : [];
+  }
+
+  return Array.isArray(exam?.visibleQuestions)
+    ? exam.visibleQuestions
+        .map(id => String(id || "").trim())
+        .filter(Boolean)
+    : [];
+}
+
+function examIsAvailableForCourse(exam, courseId){
+  const selectedCourseId = String(courseId || "").trim();
+
+  const courseIds = Array.isArray(exam?.courseIds)
+    ? exam.courseIds.map(id => String(id || "").trim())
+    : [];
+
+  const linkedDirectly = courseIds.includes(selectedCourseId);
+
+  const byCourse =
+    exam &&
+    exam.visibleQuestionsByCourse &&
+    typeof exam.visibleQuestionsByCourse === "object"
+      ? exam.visibleQuestionsByCourse
+      : {};
+
+  const hasCourseRule =
+    Object.prototype.hasOwnProperty.call(byCourse, selectedCourseId);
+
+  if(!linkedDirectly && !hasCourseRule){
+    return false;
+  }
+
+  return getVisibleQuestionIdsForCourse(exam, selectedCourseId).length > 0;
+}
+
 /* ================= Courses ================= */
 async function loadStudentCourses(){
   const courseList = document.getElementById("courseList");
@@ -1863,6 +1923,16 @@ async function loadStudentCourses(){
       return;
     }
 
+    /*
+      تحميل الاختبارات مرة واحدة، ثم عدم إظهار أي دورة
+      إلا إذا كان بها اختبار يحتوي على أسئلة ظاهرة للطالب.
+    */
+    const examsSnap = await db.collection("exams").get();
+    const allExams = examsSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
     let openCourses = [];
 
     for(const courseId of uniqueCourseIds){
@@ -1874,6 +1944,13 @@ async function loadStudentCourses(){
 
       if(status !== "open") continue;
 
+      const hasAvailableExam = allExams.some(exam =>
+        examIsAvailableForCourse(exam, cDoc.id)
+      );
+
+      // لا تظهر الدورة إطلاقًا إذا لم يكن بها واجب/اختبار ظاهر
+      if(!hasAvailableExam) continue;
+
       openCourses.push({
         id: cDoc.id,
         ...c
@@ -1881,7 +1958,7 @@ async function loadStudentCourses(){
     }
 
     if(!openCourses.length){
-      courseList.innerHTML = `<div class="empty">لا توجد دورات مفتوحة لهذا الطالب حاليًا</div>`;
+      courseList.innerHTML = `<div class="empty">لا توجد واجبات أو اختبارات متاحة حاليًا</div>`;
       return;
     }
 
@@ -2037,17 +2114,12 @@ if(!docs.length){
 
   const e = doc.data();
 
-const visibleQuestions = Array.isArray(e.visibleQuestions)
-  ? e.visibleQuestions
-  : [];
+      // لا يظهر الاختبار إذا لم يكن به سؤال ظاهر لهذه الدورة
+      if(!examIsAvailableForCourse(e, SELECTED_COURSE_ID)){
+        continue;
+      }
 
-// ✅ إذا لا يوجد visibleQuestions
-// اعرض الاختبار عادي
-// □ إذا ما فيه visibleQuestions → اعرض الاختبار عادي
-if(!Array.isArray(visibleQuestions)){
-  console.warn("visibleQuestions غير موجود");
-}
-  hasVisibleExams = true;
+      hasVisibleExams = true;
       const resultData = await getExistingResult(doc.id);
       const alreadyDone = !!resultData;
       const progressData = loadExamProgress(doc.id, CURRENT_IQAMA);

@@ -2139,58 +2139,19 @@ async function startExam(examId){
 
     const exam = examDoc.data();
 
+    const selectedCourseId = String(SELECTED_COURSE_ID || "").trim();
+
     const examCourseIds = Array.isArray(exam.courseIds)
       ? exam.courseIds.map(id => String(id).trim())
       : [];
 
-// ✅ هل الاختبار تابع للدورة؟
-const examLinked =
-  examCourseIds.includes(
-    String(SELECTED_COURSE_ID || "").trim()
-  );
+    const examLinked = examCourseIds.includes(selectedCourseId);
 
-// ✅ هل يوجد سؤال مربوط بالدورة؟
-let hasLinkedQuestion = false;
-
-const qSnap = await db.collection("questions")
-  .where("examId","==",examId)
-  .get();
-
-qSnap.forEach(doc=>{
-
-  const q = doc.data();
-
-  const used = Array.isArray(q.coursesUsed)
-    ? q.coursesUsed
-    : [];
-
-  const ok = used.some(c =>
-
-    String(c.courseId || "").trim() ===
-    String(SELECTED_COURSE_ID || "").trim()
-
-  );
-
-  if(ok){
-    hasLinkedQuestion = true;
-  }
-
-});
-
-// ❌ لا الاختبار تابع للدورة
-// ولا يوجد سؤال مربوط بها
-if(!examLinked && !hasLinkedQuestion){
-
-  alert("هذا الاختبار لا يتبع الدورة المختارة");
-
-  return;
-
-}
     /*
-      توافق ترتيب الأسئلة الجديد:
-      - visibleQuestionsByCourse يُستخدم فقط لمعرفة الأسئلة المحددة للدورة إن وُجد.
-      - visibleQuestions القديم يبقى للتوافق مع الاختبارات السابقة.
-      - الترتيب الفعلي لا يؤخذ من هذه القوائم؛ بل من حقل order المحفوظ في السؤال.
+      SECURITY / VISIBILITY:
+      لا نجلب جميع أسئلة الاختبار إلى جهاز الطالب.
+      نجلب فقط IDs المسموح بعرضها لهذه الدورة، ثم نقرأ تلك الوثائق وحدها.
+      وجود مفتاح للدورة بقائمة فارغة يعني أن جميع الأسئلة مخفية عمدًا.
     */
     const visibleQuestionsByCourse =
       exam.visibleQuestionsByCourse &&
@@ -2198,29 +2159,60 @@ if(!examLinked && !hasLinkedQuestion){
         ? exam.visibleQuestionsByCourse
         : {};
 
+    const hasCourseVisibilityRule =
+      Object.prototype.hasOwnProperty.call(
+        visibleQuestionsByCourse,
+        selectedCourseId
+      );
+
     const courseVisibleQuestions =
-      Array.isArray(
-        visibleQuestionsByCourse[
-          String(SELECTED_COURSE_ID || "").trim()
-        ]
-      )
-        ? visibleQuestionsByCourse[
-            String(SELECTED_COURSE_ID || "").trim()
-          ]
+      hasCourseVisibilityRule &&
+      Array.isArray(visibleQuestionsByCourse[selectedCourseId])
+        ? visibleQuestionsByCourse[selectedCourseId]
+            .map(id => String(id).trim())
+            .filter(Boolean)
         : [];
 
     const legacyVisibleQuestions =
       Array.isArray(exam.visibleQuestions)
         ? exam.visibleQuestions
+            .map(id => String(id).trim())
+            .filter(Boolean)
         : [];
 
-    const visibleQuestionIds =
-      courseVisibleQuestions.length
-        ? courseVisibleQuestions
-        : legacyVisibleQuestions;
+    const visibleQuestionIds = hasCourseVisibilityRule
+      ? courseVisibleQuestions
+      : legacyVisibleQuestions;
 
-const groupSkillsByCourse =
-  exam.groupSkillsByCourse || {};
+    if(!examLinked && !hasCourseVisibilityRule){
+      alert("هذا الاختبار لا يتبع الدورة المختارة");
+      return;
+    }
+
+    if(visibleQuestionIds.length === 0){
+      alert("لا توجد أسئلة ظاهرة للطالب في هذه الدورة");
+      return;
+    }
+
+    const questionSnapshots = await Promise.all(
+      visibleQuestionIds.map(id =>
+        db.collection("questions").doc(id).get()
+      )
+    );
+
+    const visibleQuestionDocs = questionSnapshots.filter(doc => {
+      if(!doc.exists) return false;
+      const q = doc.data() || {};
+      return String(q.examId || "").trim() === String(examId).trim();
+    });
+
+    const qSnap = {
+      docs: visibleQuestionDocs,
+      empty: visibleQuestionDocs.length === 0
+    };
+
+    const groupSkillsByCourse =
+      exam.groupSkillsByCourse || {};
 
 /*
   ترتيب الأسئلة:
@@ -2363,7 +2355,7 @@ sortedQuestionDocs.forEach(doc=>{
     fillColumns: Math.max(1,Math.min(12,Number(q.fillColumns || 10))),
     mediaType: q.mediaType || "none",
     mediaUrl: q.mediaUrl || "",
-    showMedia: q.showMedia === true,
+    showMedia: q.showMedia !== false,
     group: groupName,
     skill: (
 

@@ -3970,52 +3970,152 @@ async function saveExamGradeToStudent(
   studentId,
   finalScore
 ){
+  try{
 
-  const examDoc =
-    await db.collection("exams")
+    if(!examId || !studentId){
+      console.error("Missing examId or studentId", {
+        examId,
+        studentId
+      });
+      return;
+    }
+
+    const examDoc = await db.collection("exams")
       .doc(examId)
       .get();
 
-  if(!examDoc.exists) return;
+    if(!examDoc.exists){
+      console.error("Exam document not found:", examId);
+      return;
+    }
 
-  const exam =
-    examDoc.data();
+    const exam = examDoc.data() || {};
 
-  const category =
-    exam.examCategory || "";
+    const originalCategory = String(
+      exam.examCategory ||
+      exam.examType ||
+      exam.category ||
+      ""
+    ).trim();
 
-  if(
-    !category ||
-    category === "quizEvaluation"
-  ){
-    return;
-  }
+    const examTitle = String(
+      exam.title || ""
+    ).trim().toLowerCase();
 
-  if(
-    ![
-      "midterm",
-      "finalExam",
-      "listening",
-      "speaking"
-    ].includes(category)
-  ){
-    return;
-  }
+    const normalizedValue = originalCategory
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
 
-  await db.collection("students")
-    .doc(studentId)
-    .update({
+    let category = "";
 
-      [category]:
-        Number(finalScore || 0)
+    /* دعم القيم الجديدة والقديمة */
+    if(
+      normalizedValue === "midterm" ||
+      normalizedValue === "midtermexam"
+    ){
+      category = "midterm";
+    }
 
+    else if(
+      normalizedValue === "final" ||
+      normalizedValue === "finalexam"
+    ){
+      category = "finalExam";
+    }
+
+    else if(
+      normalizedValue === "listening" ||
+      normalizedValue === "listeningexam"
+    ){
+      category = "listening";
+    }
+
+    else if(
+      normalizedValue === "speaking" ||
+      normalizedValue === "speakingexam"
+    ){
+      category = "speaking";
+    }
+
+    /* دعم الاختبارات القديمة التي لا تحتوي على examCategory */
+    if(!category){
+
+      if(
+        examTitle.includes("midterm") ||
+        examTitle.includes("mid term")
+      ){
+        category = "midterm";
+      }
+
+      else if(
+        examTitle.includes("final exam") ||
+        examTitle === "final"
+      ){
+        category = "finalExam";
+      }
+
+      else if(examTitle.includes("listening")){
+        category = "listening";
+      }
+
+      else if(examTitle.includes("speaking")){
+        category = "speaking";
+      }
+    }
+
+    /* الكويز العادي لا ينتقل إلى جدول الدرجات */
+    if(
+      normalizedValue === "quizevaluation" ||
+      normalizedValue === "quiz"
+    ){
+      console.log("Regular quiz: grade not transferred");
+      return;
+    }
+
+    if(!category){
+      console.warn(
+        "Exam category was not recognized:",
+        {
+          examId,
+          originalCategory,
+          examTitle
+        }
+      );
+      return;
+    }
+
+    const score = Number(finalScore);
+
+    if(!Number.isFinite(score)){
+      console.error("Invalid exam score:", finalScore);
+      return;
+    }
+
+    await db.collection("students")
+      .doc(String(studentId))
+      .set({
+        [category]: score,
+        [`${category}ExamId`]: examId,
+        [`${category}UpdatedAt`]:
+          firebase.firestore.FieldValue.serverTimestamp()
+      }, {
+        merge: true
+      });
+
+    console.log("✅ Grade transferred successfully:", {
+      studentId,
+      category,
+      score
     });
 
-  console.log(
-    "✅ Grade Saved:",
-    category,
-    finalScore
-  );
+  }catch(error){
+
+    console.error(
+      "❌ Error transferring grade to student:",
+      error
+    );
+
+  }
 }
 function formatAnswer(ans){
 

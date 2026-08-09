@@ -804,13 +804,14 @@ button:disabled{
   text-align:left;
 }
 
-/* المحافظة على شكل الشبكة في الشاشات الصغيرة مع تمرير أفقي */
+/* جميع أعمدة Fill تبقى داخل الشاشة بدون شريط أفقي */
 @media(max-width:900px){
   .fill-student-grid.horizontal{
-    overflow-x:auto;
+    overflow:hidden;
+    width:100%;
     grid-template-columns:repeat(
       var(--fill-columns,10),
-      minmax(90px,1fr)
+      minmax(0,1fr)
     );
   }
 }
@@ -826,6 +827,190 @@ button:disabled{
 }
 
 </style>
+
+<style id="prudle-student-final-format">
+/* =========================================
+   FINAL STUDENT QUESTION FORMATTING
+========================================= */
+
+#examBox,
+#questionContainer{
+  direction:ltr !important;
+}
+
+#questionContainer .question-card{
+  direction:ltr !important;
+  text-align:left !important;
+  border:1px solid #d9e6fb !important;
+  border-radius:18px !important;
+  background:#fff !important;
+  box-shadow:0 5px 16px rgba(22,68,120,.05) !important;
+  padding:18px !important;
+  margin-top:16px !important;
+}
+
+#questionContainer .question-head{
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#questionContainer .question-title{
+  direction:ltr !important;
+  text-align:left !important;
+  width:100% !important;
+  margin:10px 0 4px !important;
+  font-size:20px !important;
+  line-height:1.65 !important;
+  font-weight:900 !important;
+  color:#111827 !important;
+}
+
+#questionContainer .option,
+#questionContainer .option label{
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#questionContainer .option{
+  align-items:flex-start !important;
+  padding:12px 14px !important;
+}
+
+/* Rich Reading Passage shown above the question */
+.student-reading-passage{
+  width:100%;
+  margin:0 0 16px;
+  padding:18px 20px;
+  border:1px solid #fed7aa;
+  border-radius:16px;
+  background:#fff7ed;
+  color:#7c2d12;
+  direction:ltr;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:17px;
+  line-height:1.8;
+  overflow-wrap:anywhere;
+}
+
+.student-reading-passage.compact{
+  padding:15px 17px;
+  margin-bottom:13px;
+}
+
+.student-reading-passage-title{
+  margin-bottom:10px;
+  color:#9a3412;
+  font-weight:900;
+  font-size:16px;
+  text-align:left;
+}
+
+.student-reading-passage-content{
+  white-space:normal;
+}
+
+.student-reading-passage-content div,
+.student-reading-passage-content p{
+  margin:0 0 10px;
+  padding:0;
+}
+
+.student-reading-passage-content div:last-child,
+.student-reading-passage-content p:last-child{
+  margin-bottom:0;
+}
+
+.student-reading-passage-content ul,
+.student-reading-passage-content ol{
+  margin:8px 0 10px;
+  padding-left:28px;
+}
+
+.student-reading-passage-content li{
+  margin-bottom:5px;
+}
+
+/* Text answer looks like clean writing lines */
+.text-answer-box textarea{
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+/* Fill in the blanks: fit inside screen, no horizontal scrollbar */
+.fill-student-grid.horizontal{
+  width:100% !important;
+  max-width:100% !important;
+  grid-template-columns:repeat(
+    var(--fill-columns,10),
+    minmax(0,1fr)
+  ) !important;
+  overflow:hidden !important;
+}
+
+.fill-student-cell{
+  min-width:0 !important;
+  min-height:50px !important;
+  padding:5px 4px !important;
+  font-size:14px !important;
+  overflow:hidden !important;
+  overflow-wrap:anywhere !important;
+  word-break:break-word !important;
+}
+
+.fill-student-cell.fixed{
+  font-size:15px !important;
+}
+
+.fill-student-cell.blank input{
+  min-width:0 !important;
+  padding:6px 3px !important;
+  font-size:14px !important;
+}
+
+@media(max-width:900px){
+  .fill-student-grid.horizontal{
+    overflow:hidden !important;
+    grid-template-columns:repeat(
+      var(--fill-columns,10),
+      minmax(0,1fr)
+    ) !important;
+  }
+
+  .fill-student-cell{
+    min-height:44px !important;
+    padding:4px 2px !important;
+    font-size:12px !important;
+  }
+
+  .fill-student-cell.fixed{
+    font-size:12px !important;
+  }
+
+  .fill-student-cell.blank input{
+    padding:5px 2px !important;
+    font-size:12px !important;
+  }
+}
+
+@media(max-width:600px){
+  #questionContainer .question-card{
+    padding:13px !important;
+    border-radius:15px !important;
+  }
+
+  #questionContainer .question-title{
+    font-size:18px !important;
+    line-height:1.6 !important;
+  }
+
+  .student-reading-passage{
+    padding:14px;
+    font-size:16px;
+    line-height:1.7;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -978,6 +1163,155 @@ function esc(str){
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#39;");
 }
+
+function passagePlainToHtml(value){
+  return esc(String(value || ""))
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .split("\n")
+    .map(line=>`<div>${line || "<br>"}</div>`)
+    .join("");
+}
+
+function sanitizeStudentPassageHtml(html){
+  const source = String(html || "");
+  if(!source.trim()) return "";
+
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(
+    `<div id="studentPassageRoot">${source}</div>`,
+    "text/html"
+  );
+
+  const root = parsed.getElementById("studentPassageRoot");
+  if(!root) return "";
+
+  const allowedTags = new Set([
+    "DIV","P","BR","B","STRONG","I","EM","U",
+    "UL","OL","LI","SPAN","FONT"
+  ]);
+
+  const allowedAlign = new Set([
+    "left","center","right","justify"
+  ]);
+
+  function cleanNode(node){
+    [...node.childNodes].forEach(child=>{
+
+      if(child.nodeType === Node.COMMENT_NODE){
+        child.remove();
+        return;
+      }
+
+      if(child.nodeType !== Node.ELEMENT_NODE){
+        return;
+      }
+
+      if(!allowedTags.has(child.tagName)){
+        const fragment = parsed.createDocumentFragment();
+
+        while(child.firstChild){
+          fragment.appendChild(child.firstChild);
+        }
+
+        child.replaceWith(fragment);
+        return;
+      }
+
+      const align =
+        String(child.style?.textAlign || "").toLowerCase();
+
+      const weight =
+        String(child.style?.fontWeight || "");
+
+      const fontStyle =
+        String(child.style?.fontStyle || "");
+
+      const decoration =
+        String(child.style?.textDecoration || "");
+
+      const fontSize =
+        String(child.style?.fontSize || "");
+
+      [...child.attributes].forEach(attr=>{
+        child.removeAttribute(attr.name);
+      });
+
+      if(allowedAlign.has(align)){
+        child.style.textAlign = align;
+      }
+
+      if(weight === "bold" || Number(weight) >= 600){
+        child.style.fontWeight = "bold";
+      }
+
+      if(fontStyle === "italic"){
+        child.style.fontStyle = "italic";
+      }
+
+      if(decoration.includes("underline")){
+        child.style.textDecoration = "underline";
+      }
+
+      if(/^\d+(\.\d+)?(px|pt|em|rem|%)$/.test(fontSize)){
+        child.style.fontSize = fontSize;
+      }
+
+      cleanNode(child);
+    });
+  }
+
+  cleanNode(root);
+  return root.innerHTML.trim();
+}
+
+function getStudentPassageHtml(question){
+  const rich =
+    sanitizeStudentPassageHtml(
+      question?.passageHtml || ""
+    );
+
+  if(rich){
+    return rich;
+  }
+
+  return passagePlainToHtml(
+    question?.passage || ""
+  );
+}
+
+function renderStudentPassage(question,compact=false){
+
+  if(
+    !question?.passage &&
+    !question?.passageHtml
+  ){
+    return "";
+  }
+
+  const fallbackAlign =
+    ["left","center","right"].includes(
+      question?.passageAlign
+    )
+      ? question.passageAlign
+      : "left";
+
+  return `
+    <div
+      class="student-reading-passage ${compact ? "compact" : ""}"
+      style="text-align:${fallbackAlign}"
+    >
+      <div class="student-reading-passage-title">
+        Reading Passage
+      </div>
+
+      <div class="student-reading-passage-content">
+        ${getStudentPassageHtml(question)}
+      </div>
+    </div>
+  `;
+}
+
 function formatQuestionText(text){
 
   return String(text || "")
@@ -2464,6 +2798,11 @@ sortedQuestionDocs.forEach(doc=>{
     examId: q.examId || "",
     question: q.question || "",
     passage: q.passage || "",
+    passageHtml: q.passageHtml || "",
+    passageAlign:
+      ["left","center","right"].includes(q.passageAlign)
+        ? q.passageAlign
+        : "left",
     options: Array.isArray(q.options) ? [...q.options] : [],
     correct: q.correct,
     degree: Number(q.degree || 1),
@@ -2869,25 +3208,7 @@ if(submit){
         </div>
       </div>
 
-${q.passage ? `
-  <div style="
-    background:#eef5ff;
-    border:2px solid #164478;
-    padding:16px;
-    border-radius:16px;
-    margin-bottom:14px;
-    font-weight:700;
-    line-height:1.9;
-    direction:ltr;
-    text-align:left;
-    font-size:17px;
-  ">
-    <div style="font-weight:900; margin-bottom:8px; color:#164478;">
-      Reading Passage
-    </div>
-    ${esc(q.passage)}
-  </div>
-` : ""}
+${renderStudentPassage(q)}
 <div class="question-title">
   ${formatQuestionText(q.question)}
 </div>      ${q.showMedia ? renderMedia(q.mediaType, q.mediaUrl) : ""}
@@ -3076,24 +3397,10 @@ function renderAllQuestions(){
           </div>
         </div>
 
-        ${q.passage ? `
-          <div style="
-            background:#eef5ff;
-            border:2px solid #164478;
-            padding:12px;
-            border-radius:12px;
-            margin-bottom:10px;
-            font-weight:700;
-            line-height:1.8;
-            direction:ltr;
-            text-align:left;
-          ">
-            □ ${esc(q.passage)}
-          </div>
-        ` : ""}
+        ${renderStudentPassage(q,true)}
 
         <div class="question-title">
-          ${esc(q.question)}
+          ${formatQuestionText(q.question)}
         </div>
 
         ${q.showMedia ? renderMedia(q.mediaType, q.mediaUrl) : ""}
@@ -4476,6 +4783,35 @@ async function uploadAudioAnswer(fileObj){
 }
 
 </script>
+
+
+<style id="prudle-student-last-override">
+#questionContainer,
+#questionContainer *{
+  box-sizing:border-box;
+}
+
+#questionContainer .question-card{
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#questionContainer .question-title{
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#questionContainer .question-title,
+#questionContainer .option label,
+#questionContainer .order-item,
+#questionContainer .match-left-item{
+  unicode-bidi:isolate;
+}
+
+#questionContainer .student-reading-passage-content{
+  direction:ltr;
+}
+</style>
 
 </body>
 </html>

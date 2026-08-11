@@ -1573,6 +1573,8 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
+/* Prudle Student Visibility Sync: STRICT_SHOWN_ONLY_V2 */
+
 let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
 let CURRENT_EXAM_ID = "";
 let CURRENT_EXAM = null;
@@ -2663,6 +2665,22 @@ window.addEventListener("DOMContentLoaded", function(){
 function getVisibleQuestionIdsForCourse(exam, courseId){
   const selectedCourseId = String(courseId || "").trim();
 
+  /*
+    STRICT SHOWN-ONLY RULE
+    ======================
+    The Admin sidebar controls student visibility through:
+      exams.visibleQuestionsByCourse[courseId]
+
+    Green "Shown"  => array contains question IDs.
+    Red "Hidden"   => array is empty.
+    Missing key    => NOT published / NOT shown.
+
+    IMPORTANT:
+    We intentionally DO NOT fall back to the old visibleQuestions field.
+    This prevents an old/legacy value from making a Hidden model reappear.
+  */
+  if(!selectedCourseId) return [];
+
   const byCourse =
     exam &&
     exam.visibleQuestionsByCourse &&
@@ -2670,32 +2688,29 @@ function getVisibleQuestionIdsForCourse(exam, courseId){
       ? exam.visibleQuestionsByCourse
       : {};
 
-  const hasCourseRule =
-    Object.prototype.hasOwnProperty.call(byCourse, selectedCourseId);
-
-  if(hasCourseRule){
-    return Array.isArray(byCourse[selectedCourseId])
-      ? byCourse[selectedCourseId]
-          .map(id => String(id || "").trim())
-          .filter(Boolean)
-      : [];
+  if(
+    !Object.prototype.hasOwnProperty.call(
+      byCourse,
+      selectedCourseId
+    )
+  ){
+    return [];
   }
 
-  return Array.isArray(exam?.visibleQuestions)
-    ? exam.visibleQuestions
-        .map(id => String(id || "").trim())
-        .filter(Boolean)
+  const ids = Array.isArray(byCourse[selectedCourseId])
+    ? byCourse[selectedCourseId]
     : [];
+
+  return [...new Set(
+    ids
+      .map(id => String(id || "").trim())
+      .filter(Boolean)
+  )];
 }
 
 function examIsAvailableForCourse(exam, courseId){
   const selectedCourseId = String(courseId || "").trim();
-
-  const courseIds = Array.isArray(exam?.courseIds)
-    ? exam.courseIds.map(id => String(id || "").trim())
-    : [];
-
-  const linkedDirectly = courseIds.includes(selectedCourseId);
+  if(!selectedCourseId) return false;
 
   const byCourse =
     exam &&
@@ -2704,14 +2719,25 @@ function examIsAvailableForCourse(exam, courseId){
       ? exam.visibleQuestionsByCourse
       : {};
 
-  const hasCourseRule =
-    Object.prototype.hasOwnProperty.call(byCourse, selectedCourseId);
-
-  if(!linkedDirectly && !hasCourseRule){
+  /*
+    Exact compatibility with the Admin "Shown / Hidden" switch:
+    - no course key = hidden
+    - [] = hidden
+    - [question ids...] = shown
+  */
+  if(
+    !Object.prototype.hasOwnProperty.call(
+      byCourse,
+      selectedCourseId
+    )
+  ){
     return false;
   }
 
-  return getVisibleQuestionIdsForCourse(exam, selectedCourseId).length > 0;
+  return getVisibleQuestionIdsForCourse(
+    exam,
+    selectedCourseId
+  ).length > 0;
 }
 
 /* ================= Courses ================= */
@@ -2792,17 +2818,6 @@ async function loadStudentCourses(){
       getCreatedAtValue(b.exam) - getCreatedAtValue(a.exam)
     );
 
-    courseList.innerHTML = `
-      <div class="course-summary-pill">
-        <span class="summary-icon">✓</span>
-        <span><b>${availablePairs.length}</b> اختبار/واجب متاح</span>
-      </div>
-      <div class="course-summary-pill">
-        <span class="summary-icon">▦</span>
-        <span><b>${new Set(availablePairs.map(item=>item.course.id)).size}</b> دورة مفتوحة</span>
-      </div>
-    `;
-
     const statusData = await Promise.all(
       availablePairs.map(async ({course, exam}) => {
         const courseStudent =
@@ -2811,20 +2826,56 @@ async function loadStudentCourses(){
           ) || STUDENT_MAIN;
 
         const studentDocId = String(courseStudent?.id || STUDENT_ID || "").trim();
+
         const existing = await getExistingResultForCourse(
           exam.id,
           course.id,
           studentDocId
         );
 
-        const progress = loadExamProgress(exam.id, CURRENT_IQAMA);
-
-        return {course, exam, courseStudent, studentDocId, existing, progress};
+        return {
+          course,
+          exam,
+          courseStudent,
+          studentDocId,
+          existing
+        };
       })
     );
 
-    examList.innerHTML = statusData.map((item,index)=>{
-      const {course, exam, existing, progress} = item;
+    /*
+      A completed exam must NOT appear again at all.
+      This also means its course will not appear in the available-course count
+      unless that same course has another green Shown exam that is still unanswered.
+    */
+    const activeStatusData = statusData.filter(item =>
+      !item.existing &&
+      examIsAvailableForCourse(item.exam, item.course.id)
+    );
+
+    if(!activeStatusData.length){
+      courseList.innerHTML = "";
+      examList.innerHTML = `
+        <div class="direct-empty">
+          لا توجد اختبارات ظاهرة ومتاحة حاليًا.
+        </div>
+      `;
+      return;
+    }
+
+    courseList.innerHTML = `
+      <div class="course-summary-pill">
+        <span class="summary-icon">✓</span>
+        <span><b>${activeStatusData.length}</b> اختبار/واجب متاح</span>
+      </div>
+      <div class="course-summary-pill">
+        <span class="summary-icon">▦</span>
+        <span><b>${new Set(activeStatusData.map(item=>item.course.id)).size}</b> دورة بها اختبار متاح</span>
+      </div>
+    `;
+
+    examList.innerHTML = activeStatusData.map((item,index)=>{
+      const {course, exam} = item;
       const title = exam.title || "اختبار بدون عنوان";
       const courseName =
         course.TrainingCourse ||
@@ -2852,11 +2903,6 @@ async function loadStudentCourses(){
         course.level ||
         "";
 
-      const startDate =
-        course.StartDate ||
-        course.startDate ||
-        "";
-
       return `
         <article class="direct-exam-card">
           <div class="direct-exam-accent"></div>
@@ -2867,9 +2913,7 @@ async function loadStudentCourses(){
               <div class="direct-exam-kicker">AVAILABLE ASSESSMENT</div>
               <h3>${esc(title)}</h3>
             </div>
-            <span class="availability-chip ${existing ? "done" : "live"}">
-              ${existing ? "تم الحل" : "متاح الآن"}
-            </span>
+            <span class="availability-chip live">متاح الآن</span>
           </div>
 
           <div class="course-detail-panel">
@@ -2899,30 +2943,16 @@ async function loadStudentCourses(){
             </div>
           </div>
 
-          ${
-            existing
-            ? `
-              <div class="previous-result">
-                <div>
-                  <span>النتيجة السابقة</span>
-                  <strong>${Number(existing.score || 0)} / ${Number(existing.totalDegree || 0)}</strong>
-                </div>
-                <div class="percent-ring">${Number(existing.percent || 0)}%</div>
-              </div>
-            `
-            : `
-              <div class="direct-actions">
-                ${progress ? `<span class="saved-progress">● لديك تقدم محفوظ</span>` : `<span class="ready-note">جاهز للبدء</span>`}
-                <button
-                  type="button"
-                  class="start-direct-btn"
-                  onclick='startExamForCourse(${JSON.stringify(exam.id)},${JSON.stringify(course.id)})'>
-                  <span>بدء الاختبار</span>
-                  <span class="arrow">←</span>
-                </button>
-              </div>
-            `
-          }
+          <div class="direct-actions">
+            <span class="ready-note">جاهز للبدء</span>
+            <button
+              type="button"
+              class="start-direct-btn"
+              onclick='startExamForCourse(${JSON.stringify(exam.id)},${JSON.stringify(course.id)})'>
+              <span>بدء الاختبار</span>
+              <span class="arrow">←</span>
+            </button>
+          </div>
         </article>
       `;
     }).join("");
@@ -2999,194 +3029,85 @@ async function selectCourse(courseId){
 
 /* ================= Exams ================= */
 async function loadStudentExams(){
-
   const examList = document.getElementById("examList");
 
   if(!SELECTED_COURSE_ID){
-    examList.innerHTML = `<div class="empty">اختر دورة أولًا لعرض الاختبارات</div>`;
+    examList.innerHTML = `<div class="empty">لا توجد اختبارات متاحة</div>`;
     return;
   }
 
   examList.innerHTML = `<div class="empty">جاري تحميل الاختبارات...</div>`;
 
   try{
+    /*
+      Fast fallback loader:
+      - exams only (no full questions collection)
+      - strict green Shown rule
+      - completed exams are omitted completely
+    */
+    const snap = await db.collection("exams").get();
 
-    // □ جلب كل الاختبارات
-// ✅ تحميل الاختبارات مرة واحدة
-const snap = await db.collection("exams").get();
-
-
-// ✅ تحميل كل الأسئلة مرة واحدة فقط
-const allQuestionsSnap =
-  await db.collection("questions").get();
-
-
-// ✅ تجميع الأسئلة حسب الاختبار
-const questionsByExam = {};
-
-allQuestionsSnap.forEach(doc=>{
-
-  const q = doc.data();
-
-  const examId =
-    String(q.examId || "").trim();
-
-  if(!questionsByExam[examId]){
-    questionsByExam[examId] = [];
-  }
-
-  questionsByExam[examId].push(q);
-
-});
-
-
-// ✅ فلترة الاختبارات
-let docs = [];
-
-for(const d of snap.docs){
-
-  const e = d.data();
-
-  // ✅ الاختبار مربوط مباشرة بالدورة
-  const examLinked =
-    Array.isArray(e.courseIds) &&
-    e.courseIds.includes(SELECTED_COURSE_ID);
-
-  // ✅ أسئلة الاختبار
-  const examQuestions =
-    questionsByExam[d.id] || [];
-
-  // ✅ هل يوجد سؤال مربوط بهذه الدورة؟
-  const hasLinkedQuestion =
-    examQuestions.some(q => {
-
-      const used =
-        Array.isArray(q.coursesUsed)
-          ? q.coursesUsed
-          : [];
-
-      return used.some(c =>
-
-        String(c.courseId || "").trim() ===
-        String(SELECTED_COURSE_ID || "").trim()
-
+    const docs = snap.docs
+      .filter(doc =>
+        examIsAvailableForCourse(
+          {id:doc.id, ...doc.data()},
+          SELECTED_COURSE_ID
+        )
+      )
+      .sort((a,b)=>
+        getCreatedAtValue(b.data()) - getCreatedAtValue(a.data())
       );
 
-    });
-
-  // ✅ إظهار الاختبار فقط إذا كان متاحًا فعليًا لهذه الدورة
-  // visibleQuestionsByCourse[courseId] هو المصدر الأساسي نفسه
-  // الذي تتحكم به صفحة الإدارة (Shown / Hidden).
-  if(
-    (examLinked || hasLinkedQuestion) &&
-    examIsAvailableForCourse(
-      { id:d.id, ...e },
-      SELECTED_COURSE_ID
-    )
-  ){
-    docs.push(d);
-  }
-
-}
-
-
-// ✅ إذا لا يوجد اختبارات
-if(!docs.length){
-
-  examList.innerHTML =
-    `<div class="empty">لا توجد اختبارات لهذه الدورة</div>`;
-
-  return;
-
-}
-    // □ ترتيب
-    docs.sort((a,b)=>
-      getCreatedAtValue(b.data()) - getCreatedAtValue(a.data())
-    );
-
-    let html = `<div class="section-title">اختبارات الدورة المختارة</div>`;
-
-    let hasVisibleExams = false;
+    const cards = [];
 
     for(const doc of docs){
+      const e = doc.data();
 
-  const e = doc.data();
+      const resultData = await getExistingResult(doc.id);
 
-      // لا يظهر الاختبار إذا لم يكن به سؤال ظاهر لهذه الدورة
-      if(!examIsAvailableForCourse(e, SELECTED_COURSE_ID)){
+      // Previously answered = do not show it at all.
+      if(resultData){
         continue;
       }
 
-      hasVisibleExams = true;
-      const resultData = await getExistingResult(doc.id);
-      const alreadyDone = !!resultData;
-      const progressData = loadExamProgress(doc.id, CURRENT_IQAMA);
-
-      html += `
+      cards.push(`
         <div class="exam-card">
-
           <div class="exam-title">${esc(e.title || "بدون عنوان")}</div>
 
           <div class="meta">
             <span class="badge info">المدة: ${formatTime(e.duration || 0)}</span>
-
             ${e.TrainingCourse
               ? `<span class="badge info">الدورة: ${esc(e.TrainingCourse)}</span>`
               : ""
             }
-
             ${e.Trainer
               ? `<span class="badge info">المدرب: ${esc(e.Trainer)}</span>`
               : ""
             }
-
-            ${
-              alreadyDone
-              ? `<span class="badge warn">تم الحل سابقًا</span>`
-              : `<span class="badge ok">متاح الآن</span>`
-            }
-
-            ${
-              (!alreadyDone && progressData)
-              ? `<span class="badge info">تم حفظ تقدم سابق</span>`
-              : ``
-            }
+            <span class="badge ok">متاح الآن</span>
           </div>
 
-          ${
-            alreadyDone
-            ? `
-              <div class="result-box">
-                <div><b>الدرجة السابقة:</b></div>
-                <div class="big-score">
-                  ${Number(resultData.score || 0)} / ${Number(resultData.totalDegree || 0)}
-                </div>
-                <div class="meta">
-                  النسبة: ${Number(resultData.percent || 0)}%
-                </div>
-              </div>
-            `
-            : `
-              <button onclick="startExam('${doc.id}')">
-                بدء الاختبار
-              </button>
-            `
-          }
-
+          <button onclick="startExam('${doc.id}')">
+            بدء الاختبار
+          </button>
         </div>
-      `;
+      `);
     }
 
-    if(!hasVisibleExams){
-      examList.innerHTML = `<div class="empty">لا توجد اختبارات جاهزة حاليًا</div>`;
+    if(!cards.length){
+      examList.innerHTML =
+        `<div class="empty">لا توجد اختبارات ظاهرة ومتاحة حاليًا</div>`;
       return;
     }
 
-    examList.innerHTML = html;
+    examList.innerHTML =
+      `<div class="section-title">الاختبارات المتاحة</div>` +
+      cards.join("");
 
   }catch(err){
     console.error(err);
-    examList.innerHTML = `<div class="empty">حدث خطأ أثناء تحميل الاختبارات</div>`;
+    examList.innerHTML =
+      `<div class="empty">حدث خطأ أثناء تحميل الاختبارات</div>`;
   }
 }/* ================= Start Exam ================= */
 async function startExam(examId){
@@ -3211,56 +3132,26 @@ async function startExam(examId){
 
     const selectedCourseId = String(SELECTED_COURSE_ID || "").trim();
 
-    const examCourseIds = Array.isArray(exam.courseIds)
-      ? exam.courseIds.map(id => String(id).trim())
-      : [];
-
-    const examLinked = examCourseIds.includes(selectedCourseId);
-
     /*
-      SECURITY / VISIBILITY:
-      لا نجلب جميع أسئلة الاختبار إلى جهاز الطالب.
-      نجلب فقط IDs المسموح بعرضها لهذه الدورة، ثم نقرأ تلك الوثائق وحدها.
-      وجود مفتاح للدورة بقائمة فارغة يعني أن جميع الأسئلة مخفية عمدًا.
+      FINAL SECURITY GATE:
+      Never use legacy visibleQuestions here.
+      The Admin green Shown switch is the only permission source.
     */
-    const visibleQuestionsByCourse =
-      exam.visibleQuestionsByCourse &&
-      typeof exam.visibleQuestionsByCourse === "object"
-        ? exam.visibleQuestionsByCourse
-        : {};
-
-    const hasCourseVisibilityRule =
-      Object.prototype.hasOwnProperty.call(
-        visibleQuestionsByCourse,
-        selectedCourseId
-      );
-
-    const courseVisibleQuestions =
-      hasCourseVisibilityRule &&
-      Array.isArray(visibleQuestionsByCourse[selectedCourseId])
-        ? visibleQuestionsByCourse[selectedCourseId]
-            .map(id => String(id).trim())
-            .filter(Boolean)
-        : [];
-
-    const legacyVisibleQuestions =
-      Array.isArray(exam.visibleQuestions)
-        ? exam.visibleQuestions
-            .map(id => String(id).trim())
-            .filter(Boolean)
-        : [];
-
-    const visibleQuestionIds = hasCourseVisibilityRule
-      ? courseVisibleQuestions
-      : legacyVisibleQuestions;
-
-    if(!examLinked && !hasCourseVisibilityRule){
-      alert("هذا الاختبار لا يتبع الدورة المختارة");
+    if(!examIsAvailableForCourse(exam, selectedCourseId)){
+      alert("هذا الاختبار غير ظاهر للطالب حاليًا");
+      await loadStudentCourses();
       return;
     }
 
+    const visibleQuestionIds =
+      getVisibleQuestionIdsForCourse(
+        exam,
+        selectedCourseId
+      );
+
     if(visibleQuestionIds.length === 0){
       alert("لا توجد أسئلة ظاهرة للطالب في هذه الدورة");
+      await loadStudentCourses();
       return;
     }
 

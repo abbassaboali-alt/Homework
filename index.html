@@ -1573,7 +1573,7 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
-/* Prudle Student Visibility Sync: STRICT_SHOWN_ONLY_V2 */
+/* Prudle Student Visibility Sync: SHOWN_CONTROLS_DISPLAY_V3 */
 
 let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
 let CURRENT_EXAM_ID = "";
@@ -2844,12 +2844,17 @@ async function loadStudentCourses(){
     );
 
     /*
-      A completed exam must NOT appear again at all.
-      This also means its course will not appear in the available-course count
-      unless that same course has another green Shown exam that is still unanswered.
+      FINAL DISPLAY RULE
+      ==================
+      Admin Shown / Hidden is the ONLY rule that decides whether the model
+      appears on the student's dashboard.
+
+      - Shown (green): display it even if the student already completed it.
+      - Hidden (red): do not display it at all.
+      - Completed + Shown: display as completed, but do not allow a new attempt
+        unless the existing retake permission mechanism allows it separately.
     */
     const activeStatusData = statusData.filter(item =>
-      !item.existing &&
       examIsAvailableForCourse(item.exam, item.course.id)
     );
 
@@ -2866,16 +2871,16 @@ async function loadStudentCourses(){
     courseList.innerHTML = `
       <div class="course-summary-pill">
         <span class="summary-icon">✓</span>
-        <span><b>${activeStatusData.length}</b> اختبار/واجب متاح</span>
+        <span><b>${activeStatusData.length}</b> اختبار ظاهر</span>
       </div>
       <div class="course-summary-pill">
         <span class="summary-icon">▦</span>
-        <span><b>${new Set(activeStatusData.map(item=>item.course.id)).size}</b> دورة بها اختبار متاح</span>
+        <span><b>${new Set(activeStatusData.map(item=>item.course.id)).size}</b> دورة ظاهرة</span>
       </div>
     `;
 
     examList.innerHTML = activeStatusData.map((item,index)=>{
-      const {course, exam} = item;
+      const {course, exam, existing} = item;
       const title = exam.title || "اختبار بدون عنوان";
       const courseName =
         course.TrainingCourse ||
@@ -2913,7 +2918,10 @@ async function loadStudentCourses(){
               <div class="direct-exam-kicker">AVAILABLE ASSESSMENT</div>
               <h3>${esc(title)}</h3>
             </div>
-            <span class="availability-chip live">متاح الآن</span>
+            ${existing
+              ? `<span class="availability-chip done">تم الحل</span>`
+              : `<span class="availability-chip live">متاح الآن</span>`
+            }
           </div>
 
           <div class="course-detail-panel">
@@ -2943,16 +2951,48 @@ async function loadStudentCourses(){
             </div>
           </div>
 
-          <div class="direct-actions">
-            <span class="ready-note">جاهز للبدء</span>
-            <button
-              type="button"
-              class="start-direct-btn"
-              onclick='startExamForCourse(${JSON.stringify(exam.id)},${JSON.stringify(course.id)})'>
-              <span>بدء الاختبار</span>
-              <span class="arrow">←</span>
-            </button>
-          </div>
+          ${
+            existing
+              ? `
+                <div class="previous-result">
+                  <div>
+                    <span>تم حل هذا الاختبار سابقًا</span>
+                    <strong>${
+                      existing.percentage !== undefined
+                        ? `${Number(existing.percentage || 0)}%`
+                        : (
+                            existing.score !== undefined
+                              ? `${Number(existing.score || 0)}`
+                              : "Completed"
+                          )
+                    }</strong>
+                  </div>
+                  <div class="percent-ring">✓</div>
+                </div>
+
+                <div class="direct-actions">
+                  <span class="ready-note">الاختبار ظاهر لأن Shown مفعّل</span>
+                  <button
+                    type="button"
+                    class="start-direct-btn"
+                    disabled>
+                    <span>تم الحل</span>
+                  </button>
+                </div>
+              `
+              : `
+                <div class="direct-actions">
+                  <span class="ready-note">جاهز للبدء</span>
+                  <button
+                    type="button"
+                    class="start-direct-btn"
+                    onclick='startExamForCourse(${JSON.stringify(exam.id)},${JSON.stringify(course.id)})'>
+                    <span>بدء الاختبار</span>
+                    <span class="arrow">←</span>
+                  </button>
+                </div>
+              `
+          }
         </article>
       `;
     }).join("");
@@ -3065,11 +3105,6 @@ async function loadStudentExams(){
 
       const resultData = await getExistingResult(doc.id);
 
-      // Previously answered = do not show it at all.
-      if(resultData){
-        continue;
-      }
-
       cards.push(`
         <div class="exam-card">
           <div class="exam-title">${esc(e.title || "بدون عنوان")}</div>
@@ -3084,12 +3119,34 @@ async function loadStudentExams(){
               ? `<span class="badge info">المدرب: ${esc(e.Trainer)}</span>`
               : ""
             }
-            <span class="badge ok">متاح الآن</span>
+            ${
+              resultData
+                ? `<span class="badge gold">تم الحل</span>`
+                : `<span class="badge ok">متاح الآن</span>`
+            }
           </div>
 
-          <button onclick="startExam('${doc.id}')">
-            بدء الاختبار
-          </button>
+          ${
+            resultData
+              ? `
+                <div class="previous-result">
+                  <div>
+                    <span>تم حل هذا الاختبار سابقًا</span>
+                    <strong>${
+                      resultData.percentage !== undefined
+                        ? `${Number(resultData.percentage || 0)}%`
+                        : "Completed"
+                    }</strong>
+                  </div>
+                  <div class="percent-ring">✓</div>
+                </div>
+              `
+              : `
+                <button onclick="startExam('${doc.id}')">
+                  بدء الاختبار
+                </button>
+              `
+          }
         </div>
       `);
     }

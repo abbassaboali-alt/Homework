@@ -1011,6 +1011,450 @@ button:disabled{
 }
 </style>
 
+
+<style id="prudle-student-pro-direct-ui">
+:root{
+  --prudle-navy:#123b68;
+  --prudle-blue:#164478;
+  --prudle-sky:#eaf3ff;
+  --prudle-green:#0f9f6e;
+  --prudle-gold:#f3c65f;
+  --prudle-ink:#172033;
+  --prudle-muted:#6b7890;
+  --prudle-line:#e7edf5;
+}
+html,body{
+  background:#f5f8fc !important;
+}
+.page{
+  max-width:1180px !important;
+  margin:0 auto !important;
+  padding:18px !important;
+}
+.header{
+  border-radius:22px !important;
+  padding:18px 22px !important;
+  background:
+    radial-gradient(circle at 90% 20%,rgba(255,255,255,.16),transparent 26%),
+    linear-gradient(135deg,#10375f,#1c609d) !important;
+  box-shadow:0 16px 40px rgba(17,55,95,.16) !important;
+}
+.header-logo{
+  width:56px !important;
+  height:56px !important;
+  border-radius:16px !important;
+}
+.header h1{
+  font-size:25px !important;
+  letter-spacing:-.4px;
+}
+.header p{
+  margin-top:4px !important;
+  font-size:13px !important;
+  opacity:.83 !important;
+}
+.student-dashboard{
+  border:1px solid #e7edf5 !important;
+  box-shadow:0 16px 46px rgba(20,52,86,.07) !important;
+  padding:22px !important;
+  overflow:hidden;
+}
+.student-dashboard-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  flex-wrap:wrap;
+  padding-bottom:18px;
+  border-bottom:1px solid var(--prudle-line);
+}
+.student-eyebrow{
+  color:#2b70aa;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.4px;
+  direction:ltr;
+  text-align:left;
+}
+.student-dashboard-head h2{
+  margin:5px 0 4px !important;
+  font-size:27px !important;
+  color:var(--prudle-ink) !important;
+}
+.student-dashboard-sub{
+  margin:0;
+  color:var(--prudle-muted);
+  font-size:14px;
+  font-weight:700;
+}
+.student-profile-mini{
+  min-width:220px;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:10px 13px;
+  border:1px solid var(--prudle-line);
+  border-radius:16px;
+  background:#fbfdff;
+}
+.student-profile-mini .student-avatar{
+  width:42px;
+  height:42px;
+  border-radius:13px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  background:linear-gradient(135deg,#164478,#2a72ad);
+  color:#fff;
+  font-weight:900;
+  font-size:18px;
+}
+.student-profile-mini strong,
+.student-profile-mini span{
+  display:block;
+}
+.student-profile-mini strong{
+  color:var(--prudle-ink);
+  font-size:14px;
+}
+.student-profile-mini span{
+  color:var(--prudle-muted);
+  font-size:12px;
+  margin-top:2px;
+  direction:ltr;
+}
+.course-summary-strip{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:16px 0 4px;
+}
+.course-summary-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  background:#f8fbff;
+  border:1px solid #e1eaf5;
+  border-radius:999px;
+  color:#40516a;
+  font-size:13px;
+  font-weight:800;
+}
+.summary-icon{
+  width:25px;
+  height:25px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:#e8f7f1;
+  color:#087b59;
+  font-size:12px;
+}
+.exam-direct-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+  margin-top:15px;
+}
+.direct-exam-card{
+  position:relative;
+  min-width:0;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #e4ebf4;
+  border-radius:20px;
+  padding:18px;
+  box-shadow:0 8px 24px rgba(21,52,84,.055);
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.direct-exam-card:hover{
+  transform:translateY(-2px);
+  border-color:#c8dbef;
+  box-shadow:0 14px 34px rgba(21,52,84,.09);
+}
+.direct-exam-accent{
+  position:absolute;
+  inset:0 auto 0 0;
+  width:4px;
+  background:linear-gradient(180deg,#164478,#4b93c8);
+}
+.direct-exam-top{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+}
+.direct-exam-number{
+  width:36px;
+  height:36px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  background:#edf5fd;
+  color:#164478;
+  font-size:12px;
+  font-weight:900;
+  direction:ltr;
+}
+.direct-exam-title-wrap{
+  min-width:0;
+  flex:1;
+}
+.direct-exam-kicker{
+  color:#7990aa;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:1px;
+  direction:ltr;
+  text-align:left;
+}
+.direct-exam-title-wrap h3{
+  margin:3px 0 0 !important;
+  color:var(--prudle-ink);
+  font-size:18px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.availability-chip{
+  flex:0 0 auto;
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:900;
+}
+.availability-chip.live{
+  background:#e8f8f1;
+  color:#087b59;
+}
+.availability-chip.done{
+  background:#fff1dd;
+  color:#a05d00;
+}
+.course-detail-panel{
+  margin-top:15px;
+  padding:13px;
+  border:1px solid #e7edf5;
+  border-radius:15px;
+  background:#fafcff;
+}
+.course-name-line{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+  color:#1d3550;
+  font-size:14px;
+}
+.course-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#2b72aa;
+  box-shadow:0 0 0 4px #e8f2fb;
+}
+.level-chip{
+  padding:3px 7px;
+  border-radius:999px;
+  background:#eef5ff;
+  color:#164478;
+  font-size:10px;
+  font-weight:900;
+}
+.course-detail-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px 12px;
+  margin-top:11px;
+}
+.detail-item{
+  min-width:0;
+}
+.detail-label{
+  display:block;
+  color:#8a98aa;
+  font-size:10px;
+  font-weight:800;
+  margin-bottom:2px;
+}
+.detail-item b{
+  display:block;
+  color:#3f4d60;
+  font-size:12px;
+  overflow-wrap:anywhere;
+}
+.direct-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:14px;
+}
+.start-direct-btn{
+  width:auto !important;
+  min-width:150px;
+  margin:0 !important;
+  padding:10px 14px !important;
+  border-radius:12px !important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  background:linear-gradient(135deg,#164478,#23679e) !important;
+  box-shadow:0 7px 16px rgba(22,68,120,.16);
+  font-size:13px !important;
+}
+.start-direct-btn .arrow{
+  font-size:17px;
+  line-height:1;
+}
+.ready-note,.saved-progress{
+  color:#7b8ba0;
+  font-size:11px;
+  font-weight:800;
+}
+.saved-progress{
+  color:#176b9c;
+}
+.previous-result{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:14px;
+  padding:11px 12px;
+  border-radius:14px;
+  background:#fff8ea;
+  border:1px solid #f7e4b7;
+}
+.previous-result span{
+  display:block;
+  color:#9a7a35;
+  font-size:10px;
+  font-weight:800;
+}
+.previous-result strong{
+  display:block;
+  margin-top:2px;
+  color:#604512;
+  font-size:17px;
+}
+.percent-ring{
+  min-width:50px;
+  height:34px;
+  padding:0 8px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  background:#fff;
+  color:#805c15;
+  border:1px solid #f3d991;
+  font-size:11px;
+  font-weight:900;
+}
+.quick-loading,.direct-empty{
+  grid-column:1/-1;
+  width:100%;
+  padding:18px;
+  border:1px solid #e4ebf4;
+  border-radius:16px;
+  background:#fafcff;
+  color:#617188;
+  font-weight:800;
+  text-align:center;
+}
+.quick-loading{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:9px;
+}
+.loading-dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#2c75ac;
+  animation:prudlePulse 1s ease-in-out infinite alternate;
+}
+@keyframes prudlePulse{
+  from{opacity:.35;transform:scale(.75)}
+  to{opacity:1;transform:scale(1.15)}
+}
+
+/* شاشة الاختبار نفسها أخف بصريًا وأسرع في الرسم */
+#examBox{
+  border:1px solid #e7edf5;
+  box-shadow:0 12px 36px rgba(20,52,86,.07);
+}
+.timer-box{
+  border-radius:16px !important;
+  box-shadow:0 8px 20px rgba(22,68,120,.13) !important;
+}
+#questionContainer .question-card{
+  box-shadow:none !important;
+  border-color:#e6edf6 !important;
+}
+.question-media img,
+.match-choice img,
+.student-match-image-cell img{
+  content-visibility:auto;
+}
+
+/* تقليل الحمل البصري على الجوال */
+@media(max-width:850px){
+  .exam-direct-grid{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:600px){
+  .page{
+    padding:9px !important;
+  }
+  .header{
+    padding:13px !important;
+    border-radius:16px !important;
+  }
+  .header-logo{
+    width:46px !important;
+    height:46px !important;
+  }
+  .header h1{
+    font-size:20px !important;
+  }
+  .header p{
+    display:none;
+  }
+  .student-dashboard{
+    padding:14px !important;
+    border-radius:17px !important;
+  }
+  .student-dashboard-head{
+    align-items:flex-start;
+  }
+  .student-dashboard-head h2{
+    font-size:22px !important;
+  }
+  .student-profile-mini{
+    width:100%;
+    min-width:0;
+  }
+  .direct-exam-card{
+    padding:14px;
+    border-radius:17px;
+  }
+  .course-detail-grid{
+    grid-template-columns:1fr 1fr;
+  }
+  .direct-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .start-direct-btn{
+    width:100% !important;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -1060,16 +1504,18 @@ button:disabled{
     <div class="footer-mini">Prudle Institute</div>
   </div>
 
-  <div class="box hidden" id="studentBox">
-    <h2>لوحة الطالب</h2>
-
-    <div class="row">
-      <div class="empty" id="studentInfo">لم يتم تحميل البيانات بعد</div>
-
+  <div class="box hidden student-dashboard" id="studentBox">
+    <div class="student-dashboard-head">
+      <div>
+        <div class="student-eyebrow">PRUDLE STUDENT PORTAL</div>
+        <h2>اختباراتك المتاحة</h2>
+        <p class="student-dashboard-sub">تظهر الاختبارات مباشرة بعد تسجيل الدخول، مع تفاصيل الدورة المرتبطة بكل اختبار.</p>
+      </div>
+      <div class="student-profile-mini" id="studentInfo">لم يتم تحميل البيانات بعد</div>
     </div>
 
-    <div id="courseList"></div>
-    <div id="examList"></div>
+    <div id="courseList" class="course-summary-strip"></div>
+    <div id="examList" class="exam-direct-grid"></div>
   </div>
 
   <div class="box hidden" id="examBox">
@@ -2132,8 +2578,11 @@ updateAuthButtons(true);
     STUDENT_ID = STUDENT_MAIN.id || "";
 
     document.getElementById("studentInfo").innerHTML = `
-      <b>اسم الطالب:</b> ${esc(STUDENT_MAIN.name || "-")}<br>
-      <b>رقم الهوية:</b> ${esc(CURRENT_IQAMA)}
+      <div class="student-avatar">${esc((STUDENT_MAIN.name || "S").trim().charAt(0).toUpperCase())}</div>
+      <div>
+        <strong>${esc(STUDENT_MAIN.name || "Student")}</strong>
+        <span>${esc(CURRENT_IQAMA)}</span>
+      </div>
     `;
 
     hideBox("loginBox");
@@ -2270,7 +2719,12 @@ async function loadStudentCourses(){
   const courseList = document.getElementById("courseList");
   const examList = document.getElementById("examList");
 
-  courseList.innerHTML = `<div class="empty">جاري تحميل الدورات المفتوحة...</div>`;
+  courseList.innerHTML = `
+    <div class="quick-loading">
+      <span class="loading-dot"></span>
+      جاري تجهيز دوراتك واختباراتك...
+    </div>
+  `;
   examList.innerHTML = "";
 
   try{
@@ -2281,81 +2735,222 @@ async function loadStudentCourses(){
     )];
 
     if(!uniqueCourseIds.length){
-      courseList.innerHTML = `<div class="empty">لا توجد دورات مرتبطة بهذا الطالب</div>`;
+      courseList.innerHTML = "";
+      examList.innerHTML = `<div class="direct-empty">لا توجد دورات مرتبطة بهذا الطالب.</div>`;
       return;
     }
 
     /*
-      تحميل الاختبارات مرة واحدة، ثم عدم إظهار أي دورة
-      إلا إذا كان بها اختبار يحتوي على أسئلة ظاهرة للطالب.
+      تحسين السرعة:
+      - تحميل جميع الدورات بالتوازي بدل طلب كل دورة على حدة.
+      - تحميل الاختبارات مرة واحدة فقط.
+      - لا نحمّل مجموعة questions في شاشة القائمة.
+        الأسئلة نفسها تُحمّل فقط عند بدء الاختبار.
     */
-    const examsSnap = await db.collection("exams").get();
-    const allExams = examsSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const [courseDocs, examsSnap] = await Promise.all([
+      Promise.all(
+        uniqueCourseIds.map(courseId =>
+          db.collection("Courses").doc(courseId).get()
+        )
+      ),
+      db.collection("exams").get()
+    ]);
 
-    let openCourses = [];
-
-    for(const courseId of uniqueCourseIds){
-      const cDoc = await db.collection("Courses").doc(courseId).get();
-      if(!cDoc.exists) continue;
-
-      const c = cDoc.data();
-      const status = normalizeStatus(c.status);
-
-      if(status !== "open") continue;
-
-      const hasAvailableExam = allExams.some(exam =>
-        examIsAvailableForCourse(exam, cDoc.id)
-      );
-
-      // لا تظهر الدورة إطلاقًا إذا لم يكن بها واجب/اختبار ظاهر
-      if(!hasAvailableExam) continue;
-
-      openCourses.push({
-        id: cDoc.id,
-        ...c
-      });
-    }
+    const openCourses = courseDocs
+      .filter(doc => doc.exists)
+      .map(doc => ({ id:doc.id, ...doc.data() }))
+      .filter(course => normalizeStatus(course.status) === "open");
 
     if(!openCourses.length){
-      courseList.innerHTML = `<div class="empty">لا توجد واجبات أو اختبارات متاحة حاليًا</div>`;
+      courseList.innerHTML = "";
+      examList.innerHTML = `<div class="direct-empty">لا توجد دورات مفتوحة حاليًا.</div>`;
       return;
     }
 
-    openCourses.sort((a,b)=>{
-      const ad = getCreatedAtValue(a);
-      const bd = getCreatedAtValue(b);
-      return bd - ad;
+    const allExams = examsSnap.docs.map(doc => ({
+      id:doc.id,
+      ...doc.data()
+    }));
+
+    const availablePairs = [];
+
+    openCourses.forEach(course => {
+      allExams.forEach(exam => {
+        if(examIsAvailableForCourse(exam, course.id)){
+          availablePairs.push({ course, exam });
+        }
+      });
     });
 
-    let html = `<div class="section-title">الدورات المفتوحة</div>`;
+    if(!availablePairs.length){
+      courseList.innerHTML = "";
+      examList.innerHTML = `<div class="direct-empty">لا توجد واجبات أو اختبارات متاحة حاليًا.</div>`;
+      return;
+    }
 
-    openCourses.forEach(c=>{
-      html += `
-        <div class="course-card">
-          <div class="course-title">${esc(c.TrainingCourse || "دورة")}</div>
-          <div class="meta">
-            ${c.Trainer ? `<span class="badge info">المدرب: ${esc(c.Trainer)}</span>` : ""}
-            ${c.Branch ? `<span class="badge gold">الفرع: ${esc(c.Branch)}</span>` : ""}
-            ${c.Section ? `<span class="badge info">القسم: ${esc(c.Section)}</span>` : ""}
-            ${c.Period ? `<span class="badge info">الفترة: ${esc(c.Period)}</span>` : ""}
-            <span class="badge ok">مفتوحة</span>
+    availablePairs.sort((a,b)=>
+      getCreatedAtValue(b.exam) - getCreatedAtValue(a.exam)
+    );
+
+    courseList.innerHTML = `
+      <div class="course-summary-pill">
+        <span class="summary-icon">✓</span>
+        <span><b>${availablePairs.length}</b> اختبار/واجب متاح</span>
+      </div>
+      <div class="course-summary-pill">
+        <span class="summary-icon">▦</span>
+        <span><b>${new Set(availablePairs.map(item=>item.course.id)).size}</b> دورة مفتوحة</span>
+      </div>
+    `;
+
+    const statusData = await Promise.all(
+      availablePairs.map(async ({course, exam}) => {
+        const courseStudent =
+          STUDENT_DOCS.find(student =>
+            String(student.courseId || "").trim() === String(course.id).trim()
+          ) || STUDENT_MAIN;
+
+        const studentDocId = String(courseStudent?.id || STUDENT_ID || "").trim();
+        const existing = await getExistingResultForCourse(
+          exam.id,
+          course.id,
+          studentDocId
+        );
+
+        const progress = loadExamProgress(exam.id, CURRENT_IQAMA);
+
+        return {course, exam, courseStudent, studentDocId, existing, progress};
+      })
+    );
+
+    examList.innerHTML = statusData.map((item,index)=>{
+      const {course, exam, existing, progress} = item;
+      const title = exam.title || "اختبار بدون عنوان";
+      const courseName =
+        course.TrainingCourse ||
+        course.Program ||
+        exam.TrainingCourse ||
+        "الدورة";
+
+      const trainer =
+        course.Trainer ||
+        exam.Trainer ||
+        "-";
+
+      const period =
+        course.Period ||
+        course.period ||
+        "-";
+
+      const branch =
+        course.Branch ||
+        course.branch ||
+        "-";
+
+      const level =
+        course.Level ||
+        course.level ||
+        "";
+
+      const startDate =
+        course.StartDate ||
+        course.startDate ||
+        "";
+
+      return `
+        <article class="direct-exam-card">
+          <div class="direct-exam-accent"></div>
+
+          <div class="direct-exam-top">
+            <div class="direct-exam-number">${String(index + 1).padStart(2,"0")}</div>
+            <div class="direct-exam-title-wrap">
+              <div class="direct-exam-kicker">AVAILABLE ASSESSMENT</div>
+              <h3>${esc(title)}</h3>
+            </div>
+            <span class="availability-chip ${existing ? "done" : "live"}">
+              ${existing ? "تم الحل" : "متاح الآن"}
+            </span>
           </div>
-          <button onclick="selectCourse('${c.id}')">اختيار هذه الدورة</button>
-        </div>
-      `;
-    });
 
-    courseList.innerHTML = html;
+          <div class="course-detail-panel">
+            <div class="course-name-line">
+              <span class="course-dot"></span>
+              <strong>${esc(courseName)}</strong>
+              ${level ? `<span class="level-chip">${esc(level)}</span>` : ""}
+            </div>
+
+            <div class="course-detail-grid">
+              <div class="detail-item">
+                <span class="detail-label">المدرب</span>
+                <b>${esc(trainer)}</b>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">الفترة</span>
+                <b>${esc(period)}</b>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">الفرع</span>
+                <b>${esc(branch)}</b>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">المدة</span>
+                <b>${formatTime(exam.duration || 0)}</b>
+              </div>
+            </div>
+          </div>
+
+          ${
+            existing
+            ? `
+              <div class="previous-result">
+                <div>
+                  <span>النتيجة السابقة</span>
+                  <strong>${Number(existing.score || 0)} / ${Number(existing.totalDegree || 0)}</strong>
+                </div>
+                <div class="percent-ring">${Number(existing.percent || 0)}%</div>
+              </div>
+            `
+            : `
+              <div class="direct-actions">
+                ${progress ? `<span class="saved-progress">● لديك تقدم محفوظ</span>` : `<span class="ready-note">جاهز للبدء</span>`}
+                <button
+                  type="button"
+                  class="start-direct-btn"
+                  onclick='startExamForCourse(${JSON.stringify(exam.id)},${JSON.stringify(course.id)})'>
+                  <span>بدء الاختبار</span>
+                  <span class="arrow">←</span>
+                </button>
+              </div>
+            `
+          }
+        </article>
+      `;
+    }).join("");
+
   }catch(err){
     console.error(err);
-    courseList.innerHTML = `<div class="empty">حدث خطأ أثناء تحميل الدورات</div>`;
+    courseList.innerHTML = "";
+    examList.innerHTML = `<div class="direct-empty">حدث خطأ أثناء تحميل الاختبارات. حاول مرة أخرى.</div>`;
   }
 }
 
-async function selectCourse(courseId){
+async function getExistingResultForCourse(examId, courseId, studentDocId){
+  const studentKey = studentDocId
+    ? `student_${studentDocId}`
+    : `iqama_${CURRENT_IQAMA}`;
+
+  const docId =
+    `${examId}__course_${courseId}__${studentKey}`;
+
+  const doc =
+    await db.collection("results")
+      .doc(docId)
+      .get();
+
+  return doc.exists ? doc.data() : null;
+}
+
+async function prepareCourseContext(courseId){
   SELECTED_COURSE_ID = String(courseId || "").trim();
 
   const courseStudent = STUDENT_DOCS.find(student =>
@@ -2365,35 +2960,6 @@ async function selectCourse(courseId){
   if(courseStudent){
     STUDENT_MAIN = courseStudent;
     STUDENT_ID = courseStudent.id;
-  }else{
-    try{
-      const studentSnap = await db.collection("students")
-        .where("iqama","==",CURRENT_IQAMA)
-        .where("courseId","==",SELECTED_COURSE_ID)
-        .get();
-
-      if(!studentSnap.empty){
-        const doc = studentSnap.docs[0];
-
-        STUDENT_MAIN = {
-          id:doc.id,
-          ...doc.data()
-        };
-
-        STUDENT_ID = doc.id;
-
-        if(!STUDENT_DOCS.some(item => item.id === doc.id)){
-          STUDENT_DOCS.push(STUDENT_MAIN);
-        }
-      }else{
-        console.warn(
-          "لم يتم العثور على سجل الطالب في الدورة:",
-          SELECTED_COURSE_ID
-        );
-      }
-    }catch(error){
-      console.error("تعذر تحديد سجل الطالب للدورة:",error);
-    }
   }
 
   try{
@@ -2404,12 +2970,30 @@ async function selectCourse(courseId){
     SELECTED_COURSE = cDoc.exists
       ? {id:cDoc.id,...cDoc.data()}
       : null;
-
   }catch(err){
     console.error(err);
     SELECTED_COURSE = null;
   }
+}
 
+async function startExamForCourse(examId, courseId){
+  const buttons = document.querySelectorAll(".start-direct-btn");
+  buttons.forEach(btn => btn.disabled = true);
+
+  try{
+    await prepareCourseContext(courseId);
+    await startExam(examId);
+  }finally{
+    buttons.forEach(btn => btn.disabled = false);
+  }
+}
+
+/*
+  الإبقاء على الدالة القديمة للتوافق مع أي استدعاء سابق،
+  ولكن الطالب لم يعد يحتاج إلى اختيار الدورة يدويًا.
+*/
+async function selectCourse(courseId){
+  await prepareCourseContext(courseId);
   await loadStudentExams();
 }
 
@@ -5459,4 +6043,3 @@ async function uploadAudioAnswer(fileObj){
   }
 }
 </style>
-

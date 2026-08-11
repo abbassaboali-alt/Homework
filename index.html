@@ -1573,7 +1573,7 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
-/* Prudle Student Visibility Sync: SHOWN_CONTROLS_DISPLAY_V3 */
+/* Prudle Student Visibility Sync: SHOWN_COMPLETED_SCORE_TOTAL_V4 */
 
 let CURRENT_IQAMA = normalizeIqama(localStorage.getItem("student_iqama") || "");
 let CURRENT_EXAM_ID = "";
@@ -2844,15 +2844,9 @@ async function loadStudentCourses(){
     );
 
     /*
-      FINAL DISPLAY RULE
-      ==================
-      Admin Shown / Hidden is the ONLY rule that decides whether the model
-      appears on the student's dashboard.
-
-      - Shown (green): display it even if the student already completed it.
-      - Hidden (red): do not display it at all.
-      - Completed + Shown: display as completed, but do not allow a new attempt
-        unless the existing retake permission mechanism allows it separately.
+      Shown / Hidden هو المتحكم الوحيد في ظهور الاختبار:
+      - Shown أخضر: يظهر حتى لو تم حله سابقًا.
+      - Hidden أحمر: لا يظهر نهائيًا.
     */
     const activeStatusData = statusData.filter(item =>
       examIsAvailableForCourse(item.exam, item.course.id)
@@ -2957,17 +2951,20 @@ async function loadStudentCourses(){
                 <div class="previous-result">
                   <div>
                     <span>تم حل هذا الاختبار سابقًا</span>
-                    <strong>${
-                      existing.percentage !== undefined
-                        ? `${Number(existing.percentage || 0)}%`
-                        : (
-                            existing.score !== undefined
-                              ? `${Number(existing.score || 0)}`
-                              : "Completed"
-                          )
-                    }</strong>
+                    <strong>
+                      ${roundExamMark(existing.score || 0)}
+                      /
+                      ${roundExamMark(existing.totalDegree || 0)}
+                    </strong>
                   </div>
-                  <div class="percent-ring">✓</div>
+
+                  <div class="percent-ring">
+                    ${
+                      existing.percent !== undefined
+                        ? `${Math.round(Number(existing.percent || 0))}%`
+                        : "✓"
+                    }
+                  </div>
                 </div>
 
                 <div class="direct-actions">
@@ -3111,14 +3108,17 @@ async function loadStudentExams(){
 
           <div class="meta">
             <span class="badge info">المدة: ${formatTime(e.duration || 0)}</span>
+
             ${e.TrainingCourse
               ? `<span class="badge info">الدورة: ${esc(e.TrainingCourse)}</span>`
               : ""
             }
+
             ${e.Trainer
               ? `<span class="badge info">المدرب: ${esc(e.Trainer)}</span>`
               : ""
             }
+
             ${
               resultData
                 ? `<span class="badge gold">تم الحل</span>`
@@ -3132,13 +3132,20 @@ async function loadStudentExams(){
                 <div class="previous-result">
                   <div>
                     <span>تم حل هذا الاختبار سابقًا</span>
-                    <strong>${
-                      resultData.percentage !== undefined
-                        ? `${Number(resultData.percentage || 0)}%`
-                        : "Completed"
-                    }</strong>
+                    <strong>
+                      ${roundExamMark(resultData.score || 0)}
+                      /
+                      ${roundExamMark(resultData.totalDegree || 0)}
+                    </strong>
                   </div>
-                  <div class="percent-ring">✓</div>
+
+                  <div class="percent-ring">
+                    ${
+                      resultData.percent !== undefined
+                        ? `${Math.round(Number(resultData.percent || 0))}%`
+                        : "✓"
+                    }
+                  </div>
                 </div>
               `
               : `

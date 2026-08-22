@@ -826,6 +826,19 @@ button:disabled{
   }
 }
 
+
+/* VOICE RECORDING LIVE TIMER */
+.voice-record-status{display:none;width:100%;margin:0 0 12px;padding:14px 16px;border:2px solid #ef4444;border-radius:15px;background:#fff1f2;color:#b91c1c;text-align:center;direction:ltr;font-family:Arial,Helvetica,sans-serif;font-size:25px;font-weight:900;letter-spacing:.4px;box-shadow:0 0 0 4px rgba(239,68,68,.08)}
+.voice-record-status.is-requesting{display:block;background:#fff7ed;border-color:#fb923c;color:#c2410c}
+.voice-record-status.is-recording{display:block;background:#fee2e2;border-color:#dc2626;color:#b91c1c;animation:prudleRecordingPulse 1s ease-in-out infinite}
+.voice-record-status.is-saved{display:block;background:#ecfdf5;border-color:#16a34a;color:#15803d;animation:none}
+.voice-record-dot{display:inline-block;width:13px;height:13px;margin-right:8px;border-radius:50%;background:#dc2626;vertical-align:1px;animation:prudleRecordDot 1s infinite}
+@keyframes prudleRecordingPulse{0%,100%{box-shadow:0 0 0 3px rgba(220,38,38,.08);transform:scale(1)}50%{box-shadow:0 0 0 8px rgba(220,38,38,.13);transform:scale(1.006)}}
+@keyframes prudleRecordDot{0%,100%{opacity:1}50%{opacity:.35}}
+.voice-start-btn.recording-now{background:#991b1b!important;cursor:not-allowed!important;opacity:.72!important}
+.voice-stop-btn{background:#16a34a!important}.voice-stop-btn:disabled{background:#94a3b8!important;opacity:.65!important}
+@media(max-width:600px){.voice-record-status{font-size:22px;padding:13px 10px}}
+
 </style>
 
 <style id="prudle-student-final-format">
@@ -1600,6 +1613,8 @@ let SELECTED_COURSE = null;
 /* ===== Voice Recorder ===== */
 let MEDIA_RECORDER = null;
 let AUDIO_CHUNKS = [];
+let RECORD_STREAM = null;
+let ACTIVE_RECORD_QID = "";
 
 /* ===== Voice Timer ===== */
 let RECORD_TIMER = null;
@@ -3817,45 +3832,11 @@ if(q.type === "voice"){
 
     <div style="margin-top:15px">
 
-      <div id="recordTimer-${q.id}"
-        style="
-          display:none;
-          background:#fee2e2;
-          color:#991b1b;
-          padding:12px;
-          border-radius:14px;
-          margin-bottom:10px;
-          text-align:center;
-          font-size:24px;
-          font-weight:900;
-        ">
-        □ Recording: 00:00
-      </div>
+      <div id="recordTimer-${q.id}" class="voice-record-status" role="status" aria-live="assertive">Recording: 00:00</div>
 
-      <button onclick="startVoiceRecord('${q.id}')"
-        style="
-          background:#dc2626;
-          color:#fff;
-          border:none;
-          padding:12px;
-          border-radius:12px;
-          font-weight:900;
-        ">
-        □ Start Recording
-      </button>
+      <button id="startRecordBtn-${q.id}" class="voice-start-btn" type="button" onclick="startVoiceRecord('${q.id}', this)" style="background:#dc2626;color:#fff;border:none;padding:12px;border-radius:12px;font-weight:900;">● Start Recording</button>
 
-      <button onclick="stopVoiceRecord('${q.id}')"
-        style="
-          background:#16a34a;
-          color:#fff;
-          border:none;
-          padding:12px;
-          border-radius:12px;
-          font-weight:900;
-          margin-top:10px;
-        ">
-        ⏹ Stop & Save
-      </button>
+      <button id="stopRecordBtn-${q.id}" class="voice-stop-btn" type="button" disabled onclick="stopVoiceRecord('${q.id}', this)" style="color:#fff;border:none;padding:12px;border-radius:12px;font-weight:900;margin-top:10px;">■ Stop & Save</button>
 
       <audio id="audioPreview-${q.id}"
         controls
@@ -5238,118 +5219,108 @@ window.addEventListener("load", async ()=>{
   // □ دخول تلقائي
   await loginStudent();
 });
-async function startVoiceRecord(qid){
+function formatRecordTimer(seconds){
+  const safe=Math.max(0,Number(seconds||0));
+  const mm=String(Math.floor(safe/60)).padStart(2,"0");
+  const ss=String(safe%60).padStart(2,"0");
+  return `${mm}:${ss}`;
+}
 
+function updateRecordingBanner(qid,state,text=""){
+  const box=document.getElementById(`recordTimer-${qid}`);
+  if(!box) return;
+  box.classList.remove("is-requesting","is-recording","is-saved");
+  if(state==="requesting"){
+    box.classList.add("is-requesting");
+    box.textContent="🎤 Requesting microphone permission...";
+  }else if(state==="recording"){
+    box.classList.add("is-recording");
+    box.innerHTML=`<span class="voice-record-dot"></span>RECORDING ${esc(text||"00:00")}`;
+  }else if(state==="saved"){
+    box.classList.add("is-saved");
+    box.textContent=text||`Recording saved (${formatRecordTimer(RECORD_SECONDS)})`;
+  }else{
+    box.classList.add("is-requesting");
+    box.textContent=text||"Microphone could not start.";
+  }
+}
+
+function setVoiceButtonsState(qid,recording){
+  const startBtn=document.getElementById(`startRecordBtn-${qid}`);
+  const stopBtn=document.getElementById(`stopRecordBtn-${qid}`);
+  if(startBtn){startBtn.disabled=!!recording;startBtn.classList.toggle("recording-now",!!recording);startBtn.textContent=recording?"● Recording...":"● Start Recording";}
+  if(stopBtn) stopBtn.disabled=!recording;
+}
+
+function getSupportedAudioMimeType(){
+  if(!window.MediaRecorder||typeof MediaRecorder.isTypeSupported!=="function") return "";
+  return ["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/ogg;codecs=opus"].find(t=>MediaRecorder.isTypeSupported(t))||"";
+}
+
+function stopRecordingStreamTracks(){
+  if(RECORD_STREAM){try{RECORD_STREAM.getTracks().forEach(t=>t.stop());}catch(e){}}
+  RECORD_STREAM=null;
+}
+
+async function startVoiceRecord(qid,button=null){
+  if(MEDIA_RECORDER&&MEDIA_RECORDER.state==="recording"){
+    if(ACTIVE_RECORD_QID===qid) return;
+    alert("Please stop the current recording first.");
+    return;
+  }
+  updateRecordingBanner(qid,"requesting");
+  if(button) button.disabled=true;
   try{
-
-    const stream =
-      await navigator.mediaDevices.getUserMedia({
-        audio:true
-      });
-
-    AUDIO_CHUNKS = [];
-
-    MEDIA_RECORDER =
-      new MediaRecorder(stream);
-
-    MEDIA_RECORDER.ondataavailable = e=>{
-      AUDIO_CHUNKS.push(e.data);
-    };
-
-MEDIA_RECORDER.start();
-
-/* ===== Start Timer ===== */
-
-RECORD_SECONDS = 0;
-
-const timerBox =
-  document.getElementById(`recordTimer-${qid}`);
-
-if(timerBox){
-
-  timerBox.style.display = "block";
-
-  timerBox.innerHTML =
-    "□ Recording: 00:00";
-}
-
-clearInterval(RECORD_TIMER);
-
-RECORD_TIMER = setInterval(()=>{
-
-  RECORD_SECONDS++;
-
-  const mm = String(
-    Math.floor(RECORD_SECONDS / 60)
-  ).padStart(2,"0");
-
-  const ss = String(
-    RECORD_SECONDS % 60
-  ).padStart(2,"0");
-
-  if(timerBox){
-
-    timerBox.innerHTML =
-      `□ Recording: ${mm}:${ss}`;
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw new Error("Microphone recording is not supported in this browser.");
+    if(location.protocol!=="https:"&&location.hostname!=="localhost") throw new Error("Microphone access requires HTTPS.");
+    RECORD_STREAM=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    AUDIO_CHUNKS=[];
+    const mimeType=getSupportedAudioMimeType();
+    MEDIA_RECORDER=mimeType?new MediaRecorder(RECORD_STREAM,{mimeType}):new MediaRecorder(RECORD_STREAM);
+    ACTIVE_RECORD_QID=qid;
+    MEDIA_RECORDER.ondataavailable=e=>{if(e.data&&e.data.size>0) AUDIO_CHUNKS.push(e.data);};
+    MEDIA_RECORDER.start(250);
+    RECORD_SECONDS=0;
+    updateRecordingBanner(qid,"recording","00:00");
+    setVoiceButtonsState(qid,true);
+    clearInterval(RECORD_TIMER);
+    RECORD_TIMER=setInterval(()=>{RECORD_SECONDS++;updateRecordingBanner(qid,"recording",formatRecordTimer(RECORD_SECONDS));},1000);
+  }catch(err){
+    console.error("Could not start recording:",err);
+    clearInterval(RECORD_TIMER);MEDIA_RECORDER=null;ACTIVE_RECORD_QID="";setVoiceButtonsState(qid,false);stopRecordingStreamTracks();
+    let message="Could not start the microphone.";
+    if(err&&(err.name==="NotAllowedError"||err.name==="PermissionDeniedError")) message="Microphone permission was denied. Please allow microphone access and try again.";
+    else if(err&&err.name==="NotFoundError") message="No microphone was found on this device.";
+    else if(err&&err.message) message=err.message;
+    updateRecordingBanner(qid,"error",message);alert(message);
   }
-
-},1000);
-
-alert("□ Recording started");
-  } catch(err){}
-}
-async function stopVoiceRecord(qid){
-
-  if(!MEDIA_RECORDER){
-    return alert("No recording found");
-  }
-clearInterval(RECORD_TIMER);
-
-  MEDIA_RECORDER.stop();
-
-  MEDIA_RECORDER.onstop = async ()=>{
-const timerBox =
-  document.getElementById(`recordTimer-${qid}`);
-
-if(timerBox){
-
-  timerBox.innerHTML += " ✅";
 }
 
-    const blob =
-      new Blob(AUDIO_CHUNKS,{
-        type:"audio/webm"
-      });
-
-    const file =
-      new File(
-        [blob],
-        "voice.webm",
-        { type:"audio/webm" }
-      );
-
-    const url =
-      await uploadAudioAnswer(file);
-
-    ANSWERS[qid] = url;
-
-    saveExamProgress();
-
-    const audio =
-      document.getElementById(
-        `audioPreview-${qid}`
-      );
-
-    if(audio){
-
-      audio.src = url;
-      audio.style.display = "block";
-    }
-
-    updateProgressUI();
-
-    alert("✅ Voice saved");
+async function stopVoiceRecord(qid,button=null){
+  if(!MEDIA_RECORDER||MEDIA_RECORDER.state!=="recording") return alert("No active recording found.");
+  if(ACTIVE_RECORD_QID&&ACTIVE_RECORD_QID!==qid) return alert("Please stop the active recording first.");
+  if(button) button.disabled=true;
+  clearInterval(RECORD_TIMER);
+  const recorder=MEDIA_RECORDER;
+  recorder.onstop=async()=>{
+    try{
+      updateRecordingBanner(qid,"saved","Saving recording...");
+      const mimeType=recorder.mimeType||"audio/webm";
+      const blob=new Blob(AUDIO_CHUNKS,{type:mimeType});
+      if(!blob.size) throw new Error("The recording is empty. Please record again.");
+      const ext=mimeType.includes("mp4")?"m4a":mimeType.includes("ogg")?"ogg":"webm";
+      const file=new File([blob],`voice.${ext}`,{type:mimeType});
+      const url=await uploadAudioAnswer(file);
+      ANSWERS[qid]=url;saveExamProgress();
+      const audio=document.getElementById(`audioPreview-${qid}`);
+      if(audio){audio.src=url;audio.style.display="block";}
+      updateProgressUI();
+      updateRecordingBanner(qid,"saved",`✓ Saved • ${formatRecordTimer(RECORD_SECONDS)}`);
+    }catch(error){console.error("Could not save recording:",error);updateRecordingBanner(qid,"error",error?.message||"Could not save the recording.");alert(error?.message||"Could not save the recording.");}
+    finally{setVoiceButtonsState(qid,false);stopRecordingStreamTracks();MEDIA_RECORDER=null;ACTIVE_RECORD_QID="";AUDIO_CHUNKS=[];}
   };
+  try{if(typeof recorder.requestData==="function"){try{recorder.requestData();}catch(e){}}recorder.stop();}
+  catch(error){console.error("Could not stop recording:",error);setVoiceButtonsState(qid,true);alert("Could not stop recording.");}
 }
 
 async function uploadAudioAnswer(fileObj){

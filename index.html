@@ -313,11 +313,19 @@ button:disabled{
 }
 .question-media{margin-top:12px}
 .question-media img,
-.question-media video{
+.question-media video,
+.question-media iframe{
   width:100%;
   max-width:100%;
   border-radius:14px;
   border:1px solid #e5e7eb;
+}
+.question-media iframe{
+  display:block;
+  aspect-ratio:16 / 9;
+  height:auto;
+  min-height:220px;
+  background:#000;
 }
 .question-media audio{width:100%}
 .option{
@@ -1842,18 +1850,98 @@ function formatTime(total){
   return `${pad(mm)}:${pad(ss)}`;
 }
 
+/*
+  Keep the student page compatible with Admin media URLs.
+  YouTube / Shorts URLs are pages, so they use an embed iframe.
+  Direct video files such as MP4 continue to use the video element.
+*/
+function getYouTubeVideoId(rawUrl){
+  const value = String(rawUrl || "").trim();
+  if(!value) return "";
+
+  try{
+    const prepared = /^https?:\/\//i.test(value)
+      ? value
+      : `https://${value}`;
+
+    const url = new URL(prepared);
+    const host = url.hostname
+      .toLowerCase()
+      .replace(/^www\./, "");
+
+    let videoId = "";
+
+    if(host === "youtu.be"){
+      videoId = url.pathname
+        .split("/")
+        .filter(Boolean)[0] || "";
+    }
+    else if(
+      host === "youtube.com" ||
+      host.endsWith(".youtube.com") ||
+      host === "youtube-nocookie.com" ||
+      host.endsWith(".youtube-nocookie.com")
+    ){
+      if(url.pathname === "/watch"){
+        videoId = url.searchParams.get("v") || "";
+      }else{
+        const match = url.pathname.match(
+          /^\/(?:shorts|embed|live)\/([^/?#]+)/i
+        );
+        videoId = match?.[1] || "";
+      }
+    }
+
+    return /^[A-Za-z0-9_-]{11}$/.test(videoId)
+      ? videoId
+      : "";
+  }catch(error){
+    return "";
+  }
+}
+
+function getYouTubeEmbedUrl(rawUrl){
+  const videoId = getYouTubeVideoId(rawUrl);
+
+  return videoId
+    ? `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`
+    : "";
+}
+
 function renderMedia(mediaType, mediaUrl){
   if(!mediaUrl || mediaType === "none") return "";
 
+  const safeUrl = esc(mediaUrl);
+
   if(mediaType === "image"){
-    return `<div class="question-media"><img src="${mediaUrl}" alt="image"></div>`;
+    return `<div class="question-media"><img src="${safeUrl}" alt="image"></div>`;
   }
+
   if(mediaType === "video"){
-    return `<div class="question-media"><video controls src="${mediaUrl}"></video></div>`;
+    const youtubeEmbedUrl = getYouTubeEmbedUrl(mediaUrl);
+
+    if(youtubeEmbedUrl){
+      return `
+        <div class="question-media">
+          <iframe
+            src="${esc(youtubeEmbedUrl)}"
+            title="YouTube video player"
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+          </iframe>
+        </div>
+      `;
+    }
+
+    return `<div class="question-media"><video controls playsinline preload="metadata" src="${safeUrl}"></video></div>`;
   }
+
   if(mediaType === "audio"){
-    return `<div class="question-media"><audio controls src="${mediaUrl}"></audio></div>`;
+    return `<div class="question-media"><audio controls preload="metadata" src="${safeUrl}"></audio></div>`;
   }
+
   return "";
 }
 
@@ -5543,6 +5631,19 @@ async function uploadAudioAnswer(fileObj){
   display:block !important;
 }
 
+#questionContainer .question-media iframe{
+  display:block !important;
+  width:min(100%,140mm) !important;
+  max-width:100% !important;
+  aspect-ratio:16 / 9 !important;
+  height:auto !important;
+  min-height:220px !important;
+  margin:0 auto !important;
+  border:1px solid #dbeafe !important;
+  border-radius:1mm !important;
+  background:#000 !important;
+}
+
 #questionContainer .question-media audio{
   width:100% !important;
 }
@@ -5798,6 +5899,11 @@ async function uploadAudioAnswer(fileObj){
   #questionContainer .question-media img{
     max-width:100% !important;
     max-height:75mm !important;
+  }
+
+  #questionContainer .question-media iframe{
+    width:100% !important;
+    min-height:200px !important;
   }
 }
 </style>

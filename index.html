@@ -1476,6 +1476,188 @@ html,body{
 }
 </style>
 
+
+<style id="prudle-ios-safari-exam-fix">
+/* =========================================================
+   iPhone / Safari exam fix
+   - Prevent the upper exam panel from covering questions.
+   - Respect iPhone safe areas.
+   - Keep navigation + submit controls visible.
+========================================================= */
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  min-height:100%;
+}
+
+body{
+  min-height:100vh;
+  min-height:100dvh;
+}
+
+button,
+input,
+select,
+textarea{
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+input[type="radio"],
+input[type="checkbox"]{
+  -webkit-appearance:auto;
+  appearance:auto;
+}
+
+@media(max-width:700px){
+  body.prudle-exam-active{
+    overflow-x:hidden !important;
+    padding-top:env(safe-area-inset-top,0px) !important;
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px) !important;
+  }
+
+  /* أثناء الاختبار لا نحتاج الهيدر الكبير أعلى الصفحة */
+  body.prudle-exam-active .page > .header{
+    display:none !important;
+  }
+
+  body.prudle-exam-active .page{
+    padding:
+      max(6px,env(safe-area-inset-top,0px))
+      7px
+      calc(92px + env(safe-area-inset-bottom,0px))
+      7px !important;
+  }
+
+  body.prudle-exam-active #examBox{
+    margin-top:0 !important;
+    padding:8px !important;
+    border-radius:12px !important;
+    overflow:visible !important;
+  }
+
+  body.prudle-exam-active #examBox > h2{
+    display:none !important;
+  }
+
+  /* Safari كان يجعل الشريط sticky يغطي أول السؤال */
+  body.prudle-exam-active .timer-box{
+    position:relative !important;
+    top:auto !important;
+    z-index:2 !important;
+    margin:0 0 10px !important;
+    padding:10px 11px !important;
+    border-radius:12px !important;
+  }
+
+  body.prudle-exam-active .timer-flex{
+    flex-wrap:nowrap !important;
+  }
+
+  body.prudle-exam-active #examHeaderInfo{
+    min-width:0 !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+    font-size:12px !important;
+  }
+
+  body.prudle-exam-active .timer{
+    flex:0 0 auto !important;
+    font-size:20px !important;
+  }
+
+  body.prudle-exam-active .progress-wrap{
+    margin-top:8px !important;
+  }
+
+  body.prudle-exam-active .status-row{
+    display:none !important;
+  }
+
+  body.prudle-exam-active .save-note{
+    margin-top:6px !important;
+    font-size:11px !important;
+  }
+
+  body.prudle-exam-active #questionContainer{
+    position:relative !important;
+    z-index:1 !important;
+    width:100% !important;
+    max-width:100% !important;
+    overflow:visible !important;
+  }
+
+  body.prudle-exam-active #questionContainer .question-card{
+    margin-top:8px !important;
+  }
+
+  /* أزرار التنقل والإرسال تبقى ظاهرة فوق شريط Safari السفلي */
+  body.prudle-exam-active #examBox .actions{
+    position:sticky !important;
+    bottom:calc(7px + env(safe-area-inset-bottom,0px)) !important;
+    z-index:999 !important;
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    gap:7px !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:12px 0 0 !important;
+    padding:8px !important;
+    border:1px solid #dbe5ef !important;
+    border-radius:14px !important;
+    background:rgba(255,255,255,.97) !important;
+    box-shadow:0 -5px 22px rgba(15,45,75,.13) !important;
+    -webkit-backdrop-filter:blur(10px);
+    backdrop-filter:blur(10px);
+  }
+
+  body.prudle-exam-active #examBox .actions button{
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:100% !important;
+    min-width:0 !important;
+    min-height:46px !important;
+    margin:0 !important;
+    padding:10px 7px !important;
+    font-size:13px !important;
+    line-height:1.2 !important;
+    touch-action:manipulation;
+  }
+
+  body.prudle-exam-active #submitBtn{
+    display:flex !important;
+    visibility:visible !important;
+    opacity:1 !important;
+    grid-column:1 / -1 !important;
+    min-height:50px !important;
+    background:#164478 !important;
+    color:#fff !important;
+  }
+
+  body.prudle-exam-active #submitBtn:disabled{
+    display:flex !important;
+    visibility:visible !important;
+    opacity:.6 !important;
+  }
+
+  body.prudle-exam-active .question-nav{
+    padding-bottom:4px !important;
+  }
+}
+
+/* أصغر أجهزة iPhone */
+@media(max-width:390px){
+  body.prudle-exam-active #examBox .actions button{
+    font-size:12px !important;
+  }
+  body.prudle-exam-active .timer{
+    font-size:18px !important;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -2309,13 +2491,35 @@ function renderMatchResultValue(pair,value){
   };
 }
 
+function syncStudentExamMobileMode(){
+  const examBox = document.getElementById("examBox");
+  const active = !!examBox && !examBox.classList.contains("hidden");
+
+  document.body.classList.toggle("prudle-exam-active", active);
+
+  if(active){
+    requestAnimationFrame(()=>{
+      window.scrollTo(0, 0);
+    });
+  }
+}
+
 function showBox(id){
-  document.getElementById(id).classList.remove("hidden");
+  const el = document.getElementById(id);
+  if(el) el.classList.remove("hidden");
+  syncStudentExamMobileMode();
 }
 
 function hideBox(id){
-  document.getElementById(id).classList.add("hidden");
+  const el = document.getElementById(id);
+  if(el) el.classList.add("hidden");
+  syncStudentExamMobileMode();
 }
+
+window.addEventListener("pageshow", syncStudentExamMobileMode);
+window.addEventListener("orientationchange", ()=>{
+  setTimeout(syncStudentExamMobileMode, 180);
+});
 
 function setLoginButtonLoading(isLoading){
   const btn = document.getElementById("loginBtn");

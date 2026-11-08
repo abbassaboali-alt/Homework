@@ -1747,6 +1747,7 @@ img, video, iframe, audio, canvas { max-width:100% !important; }
 
   <div class="box" id="loginBox">
     <h2>دخول الطالب</h2>
+    <div id="prudleLoginError" hidden role="alert" style="background:#fff0f0;color:#9b1c1c;border:1px solid #f6b6b6;border-radius:12px;padding:12px;margin:12px 0;font-size:14px;font-weight:800"></div>
 
     <div class="grid-two">
  <div>
@@ -2926,6 +2927,8 @@ async function loginStudent(){
   }
 
   LOGIN_LOADING = true;
+  const notice = document.getElementById("prudleLoginError");
+  if(notice){ notice.hidden = true; notice.textContent = ""; }
   setLoginButtonLoading(true);
 
   try{
@@ -2967,13 +2970,26 @@ updateAuthButtons(true);
     hideBox("examBox");
     hideBox("resultBox");
 
+    // Loading the assessment list is separate from validating the student.
+    // A Courses/exams permission error must not log a valid student out.
     await loadStudentCourses();
 
   }catch(err){
-    console.error(err);
-    localStorage.removeItem("student_iqama");
+    console.error("Prudle student lookup failed:", err);
+    const code = String(err?.code || "");
+    const message = String(err?.message || "");
+    const diagnostic = code.includes("permission-denied") || message.includes("Missing or insufficient permissions")
+      ? "تعذّر قراءة سجل الطالب: صلاحيات Firebase تمنع الطلب. يلزم السماح به عبر مسار الطالب الآمن في Worker؛ لا تغيّر قواعد قاعدة البيانات إلى عامة."
+      : code.includes("unavailable") || code.includes("network")
+      ? "تعذّر الاتصال بالخدمة. تحقق من الإنترنت وحاول مرة أخرى."
+      : "تعذّر التحقق من الطالب. تحقق من اتصال قاعدة البيانات ثم أعد المحاولة.";
+    const notice = document.getElementById("prudleLoginError");
+    if(notice){ notice.hidden = false; notice.textContent = diagnostic + (code ? " (" + code + ")" : ""); }
+    // Keep the login form available for a safe retry, without revealing personal data.
+    showBox("loginBox");
+    hideBox("studentBox");
+    updateAuthButtons(false);
     CURRENT_IQAMA = "";
-    alert("حدث خطأ أثناء تسجيل الدخول");
   }
 
   LOGIN_LOADING = false;
@@ -3021,15 +3037,48 @@ async function autoLoginStudentFromDashboard(){
   await loginStudent();
 }
 
-/* تشغيل الدخول التلقائي عند فتح الصفحة */
+/* Homework embedded inside the official Webflow student dashboard.
+   The parent may pass studentID only to the trusted GitHub iframe origin;
+   the child only accepts messages from the exact trusted parent origins. */
+(function(){
+  const trustedParents = new Set([
+    "https://prudle-education.com",
+    "https://www.prudle-education.com",
+    "https://prudle-system.webflow.io"
+  ]);
+  let pendingId = "";
+  window.addEventListener("message", async function(event){
+    if(event.source !== window.parent || !trustedParents.has(event.origin)) return;
+    if(event.data?.type !== "PRUDLE_HOMEWORK_STUDENT_ID") return;
+    const candidate = normalizeIqama(event.data.studentID);
+    if(!/^\d{10}$/.test(candidate)) return;
+    pendingId = candidate;
+    // Wait for a previous saved-session lookup to finish before switching students.
+    while(LOGIN_LOADING) await new Promise(resolve => setTimeout(resolve, 120));
+    if(pendingId !== candidate) return;
+    pendingId = "";
+    if(CURRENT_IQAMA === candidate && STUDENT_MAIN) return;
+    const field = document.getElementById("iqamaInput");
+    if(field) field.value = candidate;
+    await loginStudent();
+  });
+  window.addEventListener("load", function(){
+    if(window.parent === window) return;
+    for(const origin of trustedParents){
+      if(document.referrer.startsWith(origin + "/")) {
+        window.parent.postMessage({type:"PRUDLE_HOMEWORK_READY"}, origin);
+        break;
+      }
+    }
+  });
+})();
+
+/* For a standalone GitHub page, querystring login may be enabled by the existing system.
+   In Webflow iframe mode the trusted parent bridge above supplies the ID instead. */
 window.addEventListener("DOMContentLoaded", function(){
-
-  setTimeout(function(){
-
+  if(new URLSearchParams(window.location.search).has("studentID")){
     autoLoginStudentFromDashboard();
-
-  },300);
-
+  }
 });
 
 /* =========================================

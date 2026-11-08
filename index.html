@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Prudle | Student Exam System</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap" rel="stylesheet">
@@ -1655,6 +1655,74 @@ input[type="checkbox"]{
   body.prudle-exam-active .timer{
     font-size:18px !important;
   }
+}
+</style>
+
+
+<style id="prudle-iphone-safari-v1">
+/* Non-invasive final responsive layer: all legacy quiz handlers and save logic preserved. */
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; overflow-x:clip; }
+body, .page, #examBox, #questionContainer, .question-card { min-width:0; max-width:100%; }
+body { overflow-x:clip; }
+img, video, iframe, audio, canvas { max-width:100% !important; }
+#questionContainer .question-card, #questionContainer .question-title,
+.student-reading-passage, .option label, .order-item, .question-media,
+.student-match-image-cell, .match-left-item, .match-choice-text { overflow-wrap:anywhere; word-break:normal; }
+.question-media img, #questionContainer .question-media img {
+  display:block; width:auto !important; max-width:100% !important;
+  height:auto !important; max-height:min(60dvh,540px); object-fit:contain;
+  margin-inline:auto; -webkit-user-select:none;
+}
+.question-media audio, #questionContainer audio { display:block; width:100%; min-width:0; }
+#questionContainer .question-card { min-width:0; }
+#questionContainer .student-reading-passage { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+#questionContainer .student-reading-passage table { max-width:100%; }
+#questionContainer .student-reading-passage-content { overflow-wrap:anywhere; }
+#questionContainer .option { min-width:0; }
+#questionContainer .option input[type=radio] { flex:0 0 22px; width:22px; height:22px; margin-top:3px; }
+#questionContainer .option label { min-width:0; flex:1; }
+#questionContainer .match-question-row, #questionContainer .match-choice,
+#questionContainer .student-match-image-cell, #questionContainer .match-image-dropdown-card { min-width:0; }
+/* Native Safari zoom prevention: iOS zooms the page for input text below 16px. */
+@media (hover:none) and (pointer:coarse) {
+  input:not([type=radio]):not([type=checkbox]),select,textarea { font-size:16px !important; }
+  #questionContainer .option, #questionContainer .match-choice { touch-action:manipulation; }
+  button, #questionContainer label, select { -webkit-tap-highlight-color:transparent; }
+}
+@media(max-width:700px){
+  body { padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px); }
+  #examBox .question-card { padding:12px !important; }
+  #questionContainer .question-title { font-size:clamp(16px,4.4vw,20px) !important; line-height:1.55 !important; }
+  #questionContainer .student-reading-passage { padding:12px !important; font-size:16px !important; }
+  #examBox .question-head { gap:5px !important; }
+  #examBox .question-head .badge { max-width:100%; white-space:normal; }
+  #questionContainer .option { padding:10px 11px !important; gap:10px; }
+  #questionContainer .option label { font-size:16px !important; line-height:1.45; }
+  #questionContainer .order-item select { width:100%; }
+  #questionContainer .text-answer-box textarea { min-width:0; font-size:16px !important; }
+  #questionContainer .fill-student-grid.horizontal { overflow-x:auto !important; -webkit-overflow-scrolling:touch; }
+  #questionContainer .fill-student-grid.horizontal .fill-student-cell { min-width:60px; }
+  #questionContainer .fill-student-grid.horizontal .fill-student-cell.blank input { font-size:16px !important; padding:7px 2px; }
+  #questionContainer .match-image-dropdown-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #questionContainer .match-choice img { height:100px; }
+  .question-nav { scroll-margin-bottom:100px; }
+  .question-nav button { min-width:44px; min-height:44px; }
+  body.prudle-exam-active #examBox .actions { bottom:calc(5px + env(safe-area-inset-bottom,0px)) !important; }
+  body.prudle-exam-active #examBox .actions button { min-height:48px !important; font-size:14px !important; }
+  /* Honor the original previous/next/submit visibility logic despite legacy !important CSS. */
+  body.prudle-exam-active #examBox .actions button[style*="display: none"],
+  body.prudle-exam-active #examBox .actions button[style*="display:none"] {
+    display:none !important;
+  }
+  body.prudle-exam-active #submitBtn { visibility:visible !important; }
+}
+@media(max-width:380px){
+  #questionContainer .match-image-dropdown-grid, #questionContainer .student-match-image-table { grid-template-columns:1fr !important; }
+  #questionContainer .match-options-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #questionContainer .question-title { font-size:16px !important; }
+}
+@media(prefers-reduced-motion:reduce){
+  #questionContainer *, #examBox .actions * { animation-duration:.01ms !important; transition-duration:.01ms !important; }
 }
 </style>
 
@@ -5673,6 +5741,44 @@ async function uploadAudioAnswer(fileObj){
   direction:ltr;
 }
 </style>
+
+
+<script id="prudle-ios-audio-enhancements">
+(function(){
+  'use strict';
+  const speeds=[0.65,0.75,0.85,1,1.1,1.25,1.5];
+  let updatePending=false;
+  function refresh(){
+    updatePending=false;
+    const root=document.getElementById('questionContainer');
+    if(!root)return;
+    root.querySelectorAll('audio').forEach(audio=>{
+      if(audio.dataset.prudleSpeedReady==='1')return;
+      audio.dataset.prudleSpeedReady='1';
+      audio.setAttribute('playsinline','');
+      const row=document.createElement('div');row.className='prudle-mobile-audio-speed';
+      row.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 12px;direction:ltr;text-align:left';
+      const label=document.createElement('label');label.textContent='Listening speed: ';
+      label.style.cssText='font-size:14px;font-weight:800;color:#164478';
+      const select=document.createElement('select');
+      select.setAttribute('aria-label','Audio playback speed');
+      select.style.cssText='flex:0 1 160px;min-width:118px;width:auto;margin:0;font-size:16px';
+      speeds.forEach(value=>{const op=document.createElement('option');op.value=String(value);op.textContent=value+'×'+(value===1?' Normal':'');select.append(op)});
+      select.value='1';
+      select.addEventListener('change',()=>{audio.playbackRate=Number(select.value)||1;audio.defaultPlaybackRate=audio.playbackRate;});
+      audio.addEventListener('loadedmetadata',()=>{audio.playbackRate=Number(select.value)||1;});
+      label.append(select);row.append(label);audio.insertAdjacentElement('afterend',row);
+    });
+
+  }
+  function queue(){if(updatePending)return;updatePending=true;requestAnimationFrame(refresh)}
+  document.addEventListener('DOMContentLoaded',()=>{
+    const root=document.getElementById('questionContainer');
+    if(!root)return;
+    const mo=new MutationObserver(queue);mo.observe(root,{childList:true,subtree:true});queue();
+  });
+})();
+</script>
 
 </body>
 </html>

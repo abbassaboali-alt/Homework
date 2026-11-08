@@ -34,11 +34,33 @@ Error generating stack: `+e.message+`
 `).replace(/\r/g,`
 `).split(`
 `).map(e=>`<div>${e||`<br>`}</div>`).join(``)}function ie(e){let t=String(e||``);if(!t.trim())return``;let n=new DOMParser().parseFromString(`<div id="studentPassageRoot">${t}</div>`,`text/html`),r=n.getElementById(`studentPassageRoot`);if(!r)return``;let i=new Set([`DIV`,`P`,`BR`,`B`,`STRONG`,`I`,`EM`,`U`,`UL`,`OL`,`LI`,`SPAN`,`FONT`]),a=new Set([`left`,`center`,`right`,`justify`]);function o(e){[...e.childNodes].forEach(e=>{if(e.nodeType===Node.COMMENT_NODE){e.remove();return}if(e.nodeType!==Node.ELEMENT_NODE)return;let t=e;if(!i.has(t.tagName)){let t=n.createDocumentFragment();for(;e.firstChild;)t.appendChild(e.firstChild);e.replaceWith(t);return}let r=String(t.style?.textAlign||``).toLowerCase(),s=String(t.style?.fontWeight||``),c=String(t.style?.fontStyle||``),l=String(t.style?.textDecoration||``),u=String(t.style?.fontSize||``);[...t.attributes].forEach(e=>{t.removeAttribute(e.name)}),a.has(r)&&(t.style.textAlign=r),(s===`bold`||Number(s)>=600)&&(t.style.fontWeight=`bold`),c===`italic`&&(t.style.fontStyle=`italic`),l.includes(`underline`)&&(t.style.textDecoration=`underline`),/^\d+(\.\d+)?(px|pt|em|rem|%)$/.test(u)&&(t.style.fontSize=u),o(e)})}return o(r),r.innerHTML.trim()}function ae(e){return ie(e?.passageHtml||``)||E(e?.passage||``)}function oe(e){return String(e?.mediaUrl||e?.imageUrl||e?.image||``).trim()}function se(e){return oe(e)||String(e?.right||``).trim()}function ce(e){if(Array.isArray(e?.shuffledMatchOptions)&&e.shuffledMatchOptions.length>0)return e.shuffledMatchOptions;let t=T((e?.correct||[]).map(e=>({value:se(e),text:String(e?.right||``).trim(),mediaUrl:oe(e)})).filter(e=>e.value));return e.shuffledMatchOptions=t,t}function le(){try{let e=window.AudioContext||window.webkitAudioContext;if(!e)return;let t=new e,n=t.createOscillator(),r=t.createGain();n.type=`sine`,n.frequency.setValueAtTime(880,t.currentTime),r.gain.setValueAtTime(.18,t.currentTime),n.connect(r),r.connect(t.destination),n.start(),n.stop(t.currentTime+.7)}catch(e){console.log(`Audio blocked`,e)}}var ue=`https://api-prudle.abbassaboali.workers.dev`,prudleHomeworkPreviewToken=``;async function de(e){let t=await fetch(`${ue}/public/homework/lookup`,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify({iqama:e})}),n=await t.json().catch(()=>({}));if(!t.ok||n.success!==!0)throw Error(n.error||`HTTP ${t.status}`);prudleHomeworkPreviewToken=String(n.data?.previewToken||``);return n.data||{found:!1}}var fe=!1;function pe(){if(typeof window<`u`&&window.firebase){if(!fe)try{window.firebase.apps&&window.firebase.apps.length||window.firebase.initializeApp({apiKey:`AIzaSyCCFBvZosI8dwShZjxvZzI-SU5igEbcOKk`,authDomain:`prudle-system.firebaseapp.com`,projectId:`prudle-system`}),fe=!0}catch(e){console.warn(`Firebase init:`,e)}return window.firebase.firestore()}return null}async function me(e,t,n){
-if(!prudleHomeworkPreviewToken)throw Error(`Homework question preview token is missing or expired. Please enter your student ID again.`);
-let response;
-try{response=await fetch(`${ue}/public/homework/start`,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify({previewToken:prudleHomeworkPreviewToken,examId:e,courseId:t})})}catch(error){throw Error(`Cannot connect to the Homework question service: ${error?.message||`Network error`}`)}
-let result=await response.json().catch(()=>null);
-if(!response.ok||result?.success!==!0){let reason=result?.error||`HTTP ${response.status}`;if(response.status===404)reason=`Homework /public/homework/start endpoint is not deployed or the selected exam is no longer published. ${reason}`;throw Error(reason)}
+// Refresh an expired/absent preview capability from the verified narrow listing route.
+// This capability only allows reading published questions, never grade writes.
+async function refreshPreview(){
+  const studentID=String(localStorage.getItem(`student_iqama`)||localStorage.getItem(`studentID`)||new URLSearchParams(location.search).get(`studentID`)||``).trim();
+  if(!/^\d{10}$/.test(studentID))throw Error(`Please enter your student ID again to refresh the exam preview.`);
+  const listing=await de(studentID);
+  if(!listing?.found||!Array.isArray(listing.exams)||!listing.exams.some(x=>String(x.id)===String(e)&&String(x.courseId)===String(t)))
+    throw Error(`This exam is no longer available for this student's open course.`);
+  if(!prudleHomeworkPreviewToken)throw Error(`The Homework Worker is not issuing a preview token. Publish the matched Worker V5 before using this React build.`);
+}
+if(!prudleHomeworkPreviewToken)await refreshPreview();
+async function requestQuestions(){
+  let response;
+  try{response=await fetch(`${ue}/public/homework/start`,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify({previewToken:prudleHomeworkPreviewToken,examId:e,courseId:t})})}
+  catch(error){throw Error(`Cannot connect to the Homework question service: ${error?.message||`Network error`}`)}
+  const result=await response.json().catch(()=>null);
+  return {response,result};
+}
+let {response,result}=await requestQuestions();
+// A single refresh-and-retry for the 15-minute preview only; no retry loops.
+if(response.status===401){await refreshPreview();({response,result}=await requestQuestions());}
+if(!response.ok||result?.success!==!0){
+  let reason=result?.error||`HTTP ${response.status}`;
+  if(response.status===404)reason=`Homework /public/homework/start route is missing or this exam no longer has published questions. ${reason}`;
+  if(response.status===403)reason=`The Homework preview was not authorized for this exam/course. ${reason}`;
+  throw Error(reason);
+}
 let data=result?.data||{},questions=data.questions;
 if(!Array.isArray(questions))throw Error(`Invalid Homework question response: questions array missing.`);
 if(!questions.length)throw Error(`This exam has no published questions for the selected course. Check its visibility settings in the admin panel.`);

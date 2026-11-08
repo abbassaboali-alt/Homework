@@ -1747,7 +1747,6 @@ img, video, iframe, audio, canvas { max-width:100% !important; }
 
   <div class="box" id="loginBox">
     <h2>دخول الطالب</h2>
-    <div id="prudleLoginError" hidden role="alert" style="background:#fff0f0;color:#9b1c1c;border:1px solid #f6b6b6;border-radius:12px;padding:12px;margin:12px 0;font-size:14px;font-weight:800"></div>
 
     <div class="grid-two">
  <div>
@@ -2906,94 +2905,36 @@ function logoutStudent(){
 }
 
 /* ================= Login ================= */
+// Guest view uses the public Worker lookup; it does not grant access to grades/results.
+let PRUDLE_GUEST_DATA = null;
 async function loginStudent(){
   if(LOGIN_LOADING) return;
-
-  const iqama = normalizeIqama(document.getElementById("iqamaInput").value || "");
-
-  if(!iqama){
-    localStorage.removeItem("student_iqama");
-    CURRENT_IQAMA = "";
-    alert("أدخل رقم الهوية");
-    return;
-  }
-
-  // مهم: إذا الرقم نفسه غير صالح لا تترك أي قيمة محفوظة قديمة
-  if(iqama.length < 10){
-    localStorage.removeItem("student_iqama");
-    CURRENT_IQAMA = "";
-    alert("رقم الهوية غير صحيح");
-    return;
-  }
-
-  LOGIN_LOADING = true;
-  const notice = document.getElementById("prudleLoginError");
-  if(notice){ notice.hidden = true; notice.textContent = ""; }
-  setLoginButtonLoading(true);
-
-  try{
-    const snap = await db.collection("students")
-      .where("iqama","==",iqama)
-      .get();
-
-    if(snap.empty){
-      localStorage.removeItem("student_iqama");
-      CURRENT_IQAMA = "";
-      alert("الطالب غير موجود");
-      LOGIN_LOADING = false;
-      setLoginButtonLoading(false);
-      return;
-    }
-
-    // لا نحفظ إلا بعد التأكد أن الطالب موجود فعلاً
-  CURRENT_IQAMA = iqama;
-
-localStorage.setItem("studentID", iqama);
-localStorage.setItem("student_iqama", iqama);
-localStorage.setItem("studentLoginDate", new Date().toDateString());
-localStorage.removeItem("studentLoggedOut");
-updateAuthButtons(true);
-    STUDENT_DOCS = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-    STUDENT_MAIN = STUDENT_DOCS[0];
-    STUDENT_ID = STUDENT_MAIN.id || "";
-
-    document.getElementById("studentInfo").innerHTML = `
-      <div class="student-avatar">${esc((STUDENT_MAIN.name || "S").trim().charAt(0).toUpperCase())}</div>
-      <div>
-        <strong>${esc(STUDENT_MAIN.name || "Student")}</strong>
-        <span>${esc(CURRENT_IQAMA)}</span>
-      </div>
-    `;
-
-    hideBox("loginBox");
-    showBox("studentBox");
-    hideBox("examBox");
-    hideBox("resultBox");
-
-    // Loading the assessment list is separate from validating the student.
-    // A Courses/exams permission error must not log a valid student out.
+  const input = document.getElementById("iqamaInput");
+  const iqama = normalizeIqama(input?.value || "");
+  if(!/^\d{10}$/.test(iqama)){ alert("أدخل رقم هوية مكونًا من 10 أرقام"); return; }
+  LOGIN_LOADING=true; setLoginButtonLoading(true);
+  try {
+    const response = await fetch("https://api-prudle.abbassaboali.workers.dev/public/homework/lookup",{
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({iqama})
+    });
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok || payload.success!==true) throw new Error(payload.error || `HTTP ${response.status}`);
+    if(!payload.data?.found){ alert("الطالب غير موجود"); return; }
+    CURRENT_IQAMA=iqama;
+    PRUDLE_GUEST_DATA=payload.data;
+    localStorage.setItem("studentID",iqama);
+    localStorage.setItem("student_iqama",iqama);
+    localStorage.setItem("studentLoginDate",new Date().toDateString());
+    localStorage.removeItem("studentLoggedOut");
+    updateAuthButtons(true);
+    STUDENT_DOCS=[]; STUDENT_MAIN={name:payload.data.firstName||"Student"}; STUDENT_ID="";
+    document.getElementById("studentInfo").innerHTML = `<div class="student-avatar">S</div><div><strong>${esc(STUDENT_MAIN.name)}</strong><span>قائمة الاختبارات المتاحة</span></div>`;
+    hideBox("loginBox"); showBox("studentBox"); hideBox("examBox"); hideBox("resultBox");
     await loadStudentCourses();
-
-  }catch(err){
-    console.error("Prudle student lookup failed:", err);
-    const code = String(err?.code || "");
-    const message = String(err?.message || "");
-    const diagnostic = code.includes("permission-denied") || message.includes("Missing or insufficient permissions")
-      ? "تعذّر قراءة سجل الطالب: صلاحيات Firebase تمنع الطلب. يلزم السماح به عبر مسار الطالب الآمن في Worker؛ لا تغيّر قواعد قاعدة البيانات إلى عامة."
-      : code.includes("unavailable") || code.includes("network")
-      ? "تعذّر الاتصال بالخدمة. تحقق من الإنترنت وحاول مرة أخرى."
-      : "تعذّر التحقق من الطالب. تحقق من اتصال قاعدة البيانات ثم أعد المحاولة.";
-    const notice = document.getElementById("prudleLoginError");
-    if(notice){ notice.hidden = false; notice.textContent = diagnostic + (code ? " (" + code + ")" : ""); }
-    // Keep the login form available for a safe retry, without revealing personal data.
-    showBox("loginBox");
-    hideBox("studentBox");
-    updateAuthButtons(false);
-    CURRENT_IQAMA = "";
-  }
-
-  LOGIN_LOADING = false;
-  setLoginButtonLoading(false);
+  } catch(err) {
+    console.error("Worker homework lookup:",err?.message);
+    alert("تعذر تحميل الاختبارات: " + String(err?.message||"خطأ اتصال"));
+  } finally {LOGIN_LOADING=false;setLoginButtonLoading(false);}
 }
 /* =========================================
    تسجيل دخول الطالب تلقائيًا من لوحة الطالب
@@ -3037,48 +2978,15 @@ async function autoLoginStudentFromDashboard(){
   await loginStudent();
 }
 
-/* Homework embedded inside the official Webflow student dashboard.
-   The parent may pass studentID only to the trusted GitHub iframe origin;
-   the child only accepts messages from the exact trusted parent origins. */
-(function(){
-  const trustedParents = new Set([
-    "https://prudle-education.com",
-    "https://www.prudle-education.com",
-    "https://prudle-system.webflow.io"
-  ]);
-  let pendingId = "";
-  window.addEventListener("message", async function(event){
-    if(event.source !== window.parent || !trustedParents.has(event.origin)) return;
-    if(event.data?.type !== "PRUDLE_HOMEWORK_STUDENT_ID") return;
-    const candidate = normalizeIqama(event.data.studentID);
-    if(!/^\d{10}$/.test(candidate)) return;
-    pendingId = candidate;
-    // Wait for a previous saved-session lookup to finish before switching students.
-    while(LOGIN_LOADING) await new Promise(resolve => setTimeout(resolve, 120));
-    if(pendingId !== candidate) return;
-    pendingId = "";
-    if(CURRENT_IQAMA === candidate && STUDENT_MAIN) return;
-    const field = document.getElementById("iqamaInput");
-    if(field) field.value = candidate;
-    await loginStudent();
-  });
-  window.addEventListener("load", function(){
-    if(window.parent === window) return;
-    for(const origin of trustedParents){
-      if(document.referrer.startsWith(origin + "/")) {
-        window.parent.postMessage({type:"PRUDLE_HOMEWORK_READY"}, origin);
-        break;
-      }
-    }
-  });
-})();
-
-/* For a standalone GitHub page, querystring login may be enabled by the existing system.
-   In Webflow iframe mode the trusted parent bridge above supplies the ID instead. */
+/* تشغيل الدخول التلقائي عند فتح الصفحة */
 window.addEventListener("DOMContentLoaded", function(){
-  if(new URLSearchParams(window.location.search).has("studentID")){
+
+  setTimeout(function(){
+
     autoLoginStudentFromDashboard();
-  }
+
+  },300);
+
 });
 
 /* =========================================
@@ -3166,265 +3074,20 @@ function examIsAvailableForCourse(exam, courseId){
 
 /* ================= Courses ================= */
 async function loadStudentCourses(){
-  const courseList = document.getElementById("courseList");
-  const examList = document.getElementById("examList");
-
-  courseList.innerHTML = `
-    <div class="quick-loading">
-      <span class="loading-dot"></span>
-      جاري تجهيز دوراتك واختباراتك...
-    </div>
-  `;
-  examList.innerHTML = "";
-
-  try{
-    const uniqueCourseIds = [...new Set(
-      STUDENT_DOCS
-        .map(s => String(s.courseId || "").trim())
-        .filter(Boolean)
-    )];
-
-    if(!uniqueCourseIds.length){
-      courseList.innerHTML = "";
-      examList.innerHTML = `<div class="direct-empty">لا توجد دورات مرتبطة بهذا الطالب.</div>`;
-      return;
-    }
-
-    /*
-      تحسين السرعة:
-      - تحميل جميع الدورات بالتوازي بدل طلب كل دورة على حدة.
-      - تحميل الاختبارات مرة واحدة فقط.
-      - لا نحمّل مجموعة questions في شاشة القائمة.
-        الأسئلة نفسها تُحمّل فقط عند بدء الاختبار.
-    */
-    const [courseDocs, examsSnap] = await Promise.all([
-      Promise.all(
-        uniqueCourseIds.map(courseId =>
-          db.collection("Courses").doc(courseId).get()
-        )
-      ),
-      db.collection("exams").get()
-    ]);
-
-    const openCourses = courseDocs
-      .filter(doc => doc.exists)
-      .map(doc => ({ id:doc.id, ...doc.data() }))
-      .filter(course => normalizeStatus(course.status) === "open");
-
-    if(!openCourses.length){
-      courseList.innerHTML = "";
-      examList.innerHTML = `<div class="direct-empty">لا توجد دورات مفتوحة حاليًا.</div>`;
-      return;
-    }
-
-    const allExams = examsSnap.docs.map(doc => ({
-      id:doc.id,
-      ...doc.data()
-    }));
-
-    const availablePairs = [];
-
-    openCourses.forEach(course => {
-      allExams.forEach(exam => {
-        if(examIsAvailableForCourse(exam, course.id)){
-          availablePairs.push({ course, exam });
-        }
-      });
-    });
-
-    if(!availablePairs.length){
-      courseList.innerHTML = "";
-      examList.innerHTML = `<div class="direct-empty">لا توجد واجبات أو اختبارات متاحة حاليًا.</div>`;
-      return;
-    }
-
-    availablePairs.sort((a,b)=>
-      getCreatedAtValue(b.exam) - getCreatedAtValue(a.exam)
-    );
-
-    const statusData = await Promise.all(
-      availablePairs.map(async ({course, exam}) => {
-        const courseStudent =
-          STUDENT_DOCS.find(student =>
-            String(student.courseId || "").trim() === String(course.id).trim()
-          ) || STUDENT_MAIN;
-
-        const studentDocId = String(courseStudent?.id || STUDENT_ID || "").trim();
-
-        const existing = await getExistingResultForCourse(
-          exam.id,
-          course.id,
-          studentDocId
-        );
-
-        return {
-          course,
-          exam,
-          courseStudent,
-          studentDocId,
-          existing
-        };
-      })
-    );
-
-    /*
-      Shown / Hidden هو المتحكم الوحيد في ظهور الاختبار:
-      - Shown أخضر: يظهر حتى لو تم حله سابقًا.
-      - Hidden أحمر: لا يظهر نهائيًا.
-    */
-    const activeStatusData = statusData.filter(item =>
-      examIsAvailableForCourse(item.exam, item.course.id)
-    );
-
-    if(!activeStatusData.length){
-      courseList.innerHTML = "";
-      examList.innerHTML = `
-        <div class="direct-empty">
-          لا توجد اختبارات ظاهرة ومتاحة حاليًا.
-        </div>
-      `;
-      return;
-    }
-
-    courseList.innerHTML = `
-      <div class="course-summary-pill">
-        <span class="summary-icon">✓</span>
-        <span><b>${activeStatusData.length}</b> اختبار ظاهر</span>
-      </div>
-      <div class="course-summary-pill">
-        <span class="summary-icon">▦</span>
-        <span><b>${new Set(activeStatusData.map(item=>item.course.id)).size}</b> دورة ظاهرة</span>
-      </div>
-    `;
-
-    examList.innerHTML = activeStatusData.map((item,index)=>{
-      const {course, exam, existing} = item;
-      const title = exam.title || "اختبار بدون عنوان";
-      const courseName =
-        course.TrainingCourse ||
-        course.Program ||
-        exam.TrainingCourse ||
-        "الدورة";
-
-      const trainer =
-        course.Trainer ||
-        exam.Trainer ||
-        "-";
-
-      const period =
-        course.Period ||
-        course.period ||
-        "-";
-
-      const branch =
-        course.Branch ||
-        course.branch ||
-        "-";
-
-      const level =
-        course.Level ||
-        course.level ||
-        "";
-
-      return `
-        <article class="direct-exam-card">
-          <div class="direct-exam-accent"></div>
-
-          <div class="direct-exam-top">
-            <div class="direct-exam-number">${String(index + 1).padStart(2,"0")}</div>
-            <div class="direct-exam-title-wrap">
-              <div class="direct-exam-kicker">AVAILABLE ASSESSMENT</div>
-              <h3>${esc(title)}</h3>
-            </div>
-            ${existing
-              ? `<span class="availability-chip done">تم الحل</span>`
-              : `<span class="availability-chip live">متاح الآن</span>`
-            }
-          </div>
-
-          <div class="course-detail-panel">
-            <div class="course-name-line">
-              <span class="course-dot"></span>
-              <strong>${esc(courseName)}</strong>
-              ${level ? `<span class="level-chip">${esc(level)}</span>` : ""}
-            </div>
-
-            <div class="course-detail-grid">
-              <div class="detail-item">
-                <span class="detail-label">المدرب</span>
-                <b>${esc(trainer)}</b>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">الفترة</span>
-                <b>${esc(period)}</b>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">الفرع</span>
-                <b>${esc(branch)}</b>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">المدة</span>
-                <b>${formatTime(exam.duration || 0)}</b>
-              </div>
-            </div>
-          </div>
-
-          ${
-            existing
-              ? `
-                <div class="previous-result">
-                  <div>
-                    <span>تم حل هذا الاختبار سابقًا</span>
-                    <strong>
-                      ${roundExamMark(existing.score || 0)}
-                      /
-                      ${roundExamMark(existing.totalDegree || 0)}
-                    </strong>
-                  </div>
-
-                  <div class="percent-ring">
-                    ${
-                      existing.percent !== undefined
-                        ? `${Math.round(Number(existing.percent || 0))}%`
-                        : "✓"
-                    }
-                  </div>
-                </div>
-
-                <div class="direct-actions">
-                  <span class="ready-note">الاختبار ظاهر لأن Shown مفعّل</span>
-                  <button
-                    type="button"
-                    class="start-direct-btn"
-                    disabled>
-                    <span>تم الحل</span>
-                  </button>
-                </div>
-              `
-              : `
-                <div class="direct-actions">
-                  <span class="ready-note">جاهز للبدء</span>
-                  <button
-                    type="button"
-                    class="start-direct-btn"
-                    onclick='startExamForCourse(${JSON.stringify(exam.id)},${JSON.stringify(course.id)})'>
-                    <span>بدء الاختبار</span>
-                    <span class="arrow">←</span>
-                  </button>
-                </div>
-              `
-          }
-        </article>
-      `;
-    }).join("");
-
-  }catch(err){
-    console.error(err);
-    courseList.innerHTML = "";
-    examList.innerHTML = `<div class="direct-empty">حدث خطأ أثناء تحميل الاختبارات. حاول مرة أخرى.</div>`;
-  }
+  const courseList=document.getElementById("courseList");
+  const examList=document.getElementById("examList");
+  const data=PRUDLE_GUEST_DATA;
+  if(!data){examList.innerHTML='<div class="direct-empty">يرجى إدخال رقم الهوية أولًا</div>';return;}
+  const courses=Array.isArray(data.courses)?data.courses:[];
+  const exams=Array.isArray(data.exams)?data.exams:[];
+  const byId=new Map(courses.map(c=>[c.id,c]));
+  courseList.innerHTML=`<div class="course-summary-pill">${courses.length} دورة مفتوحة · ${exams.length} اختبار منشور</div>`;
+  if(!exams.length){examList.innerHTML='<div class="direct-empty">لا توجد واجبات أو اختبارات منشورة حاليًا.</div>';return;}
+  examList.innerHTML=exams.map((e,i)=>{
+    const c=byId.get(e.courseId)||{};
+    return `<article class="direct-exam-card"><div class="direct-exam-top"><div class="direct-exam-number">${i+1}</div><div class="direct-exam-title-wrap"><h3>${esc(e.title||"اختبار")}</h3></div></div><div class="course-detail-panel"><b>${esc(c.TrainingCourse||"الدورة")}</b><div class="meta">${esc(c.Period||"")} · ${esc(c.Trainer||"")} · ${Number(e.questionCount||0)} بند</div></div><div class="note">تم فتح قائمة الاختبارات برقم الهوية. بدء الاختبار وحفظ النتيجة يحتاجان مسارًا آمنًا للتحقق والتصحيح على الخادم، حتى لا يستطيع شخص آخر انتحال الطالب.</div></article>`;
+  }).join("");
 }
-
 async function getExistingResultForCourse(examId, courseId, studentDocId){
   const studentKey = studentDocId
     ? `student_${studentDocId}`

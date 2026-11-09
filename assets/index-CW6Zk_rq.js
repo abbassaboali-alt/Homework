@@ -68,7 +68,27 @@ if(!questions.length)throw Error(`This exam has no published questions for the s
 if(data.submissionEnabled!==false)throw Error(`Unexpected Homework preview contract: submissionEnabled must be false.`);
 
 return questions.map(q=>({id:String(q.id||``),examId:e,question:String(q.question||``),type:q.type||`mcq`,degree:Number(q.degree||1),options:Array.isArray(q.options)?q.options:[],passage:q.passage||``,passageHtml:``,passageAlign:`left`,mediaType:q.mediaType||`none`,mediaUrl:q.mediaUrl||``,showMedia:q.showMedia!==false,group:q.group||`General`,skill:q.skill||`General`,order:Number(q.order||0),answerLines:Number(q.answerLines||4),fillLayout:q.fillLayout===`vertical`?`vertical`:`horizontal`,fillColumns:Number(q.fillColumns||10),fillItems:Array.isArray(q.fillItems)?q.fillItems.map(i=>({display:String(i?.text||i?.display||``),mode:i?.mode===`fixed`?`fixed`:`blank`,answer:``})):[],matchItems:Array.isArray(q.matchItems)?q.matchItems:[],matchOptions:Array.isArray(q.matchOptions)?q.matchOptions:[],rightOptions:Array.isArray(q.rightOptions)?q.rightOptions:[],correct:void 0,isMain:false,createdAt:null}))
-}async function he(e,t,n,r){if(prudleHomeworkPreviewToken)return null;let i=pe();if(!i)return null;let a=r?`student_${r}`:`iqama_${n}`,o=`${e}__${t?`course_${t}`:`course_unknown`}__${a}`;try{let e=await i.collection(`results`).doc(o).get();return e.exists?e.data():null}catch(e){return console.error(`getExistingResult error:`,e),null}}async function ge(e){let t=new FormData;t.append(`file`,e),t.append(`upload_preset`,`kcgfhigd`);let n=await(await fetch(`https://api-cloudinary.abbassaboali.workers.dev/auto/upload`,{method:`POST`,body:t}).catch(async()=>fetch(`https://api.cloudinary.com/v1_1/dgs6mo4hl/auto/upload`,{method:`POST`,body:t}))).json();if(!n.secure_url)throw Error(`Upload failed`);return n.secure_url}async function _e(e,t,n,r,i,a,o,s,c){
+}async function he(e,t,n,r){
+  // V22: A fresh server-side result check on every login and every exam open.
+  // Never trust a local React state or a stale cached flag for retake permission.
+  if(!prudleHomeworkPreviewToken){
+    const listing=await de(String(n||''));
+    if(!listing?.found)throw Error('لم يتم العثور على سجل الطالب');
+  }
+  const response=await fetch(`${ue}/public/homework/status`,{
+    method:'POST',
+    cache:'no-store',
+    headers:{'Content-Type':'application/json','Cache-Control':'no-store'},
+    body:JSON.stringify({previewToken:prudleHomeworkPreviewToken,examId:String(e),courseId:String(t)})
+  });
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||payload?.success!==true){
+    // Fail closed: a temporary outage must not grant a second attempt.
+    throw Error(payload?.error||`تعذر التأكد من حالة الاختبار (HTTP ${response.status})`);
+  }
+  return payload.data?.completed ? {assessmentCompleted:true,alreadySubmitted:true,
+    examId:String(e),courseId:String(t),source:'server'} : null;
+}async function ge(e){let t=new FormData;t.append(`file`,e),t.append(`upload_preset`,`kcgfhigd`);let n=await(await fetch(`https://api-cloudinary.abbassaboali.workers.dev/auto/upload`,{method:`POST`,body:t}).catch(async()=>fetch(`https://api.cloudinary.com/v1_1/dgs6mo4hl/auto/upload`,{method:`POST`,body:t}))).json();if(!n.secure_url)throw Error(`Upload failed`);return n.secure_url}async function _e(e,t,n,r,i,a,o,s,c){
   // Placement-style scoped exam session. Requires opt-in Worker switch.
   // ID alone is NOT verified identity: this mode is intentionally restricted
   // to the current exam/course and can write ONE result, not arbitrary data.
